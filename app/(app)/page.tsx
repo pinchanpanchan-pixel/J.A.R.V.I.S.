@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MessagesSquare, PictureInPicture2, SendHorizonal } from "lucide-react";
+import { Ear, MessagesSquare, PictureInPicture2, SendHorizonal, Square } from "lucide-react";
 import { LiquidDot, type DotMode } from "@/components/LiquidDot";
 import { HoldToTalk } from "@/components/HoldToTalk";
 import { ChatHistory } from "@/components/ChatHistory";
@@ -11,36 +11,38 @@ import { useProfile } from "@/hooks/useProfile";
 import { useProfileActions } from "@/hooks/useProfileActions";
 import { useTable } from "@/hooks/useTable";
 import { useBrain } from "@/hooks/useBrain";
-import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { useSync } from "@/components/providers/SyncProvider";
-import { enqueueAudio, processAudioQueue } from "@/lib/offline/audioQueue";
-import { JARVIS_EVENTS } from "@/lib/events";
+import { useVoice } from "@/components/providers/VoiceProvider";
 
 const byCreatedAsc = (a: { created_at: string }, b: { created_at: string }) => Date.parse(a.created_at) - Date.parse(b.created_at);
 
-/** Pestaña Cerebro: el punto líquido, la transcripción y la conversación. */
+/** Pestaña Cerebro: el punto líquido, la transcripción en vivo y la conversación. */
 export default function BrainPage() {
-  const { assistantName, userName, profile, features, user } = useProfile();
+  const { assistantName, userName, profile, features } = useProfile();
   const { updateProfile } = useProfileActions();
-  const { kvFactory } = useSync();
   const online = useOnlineStatus();
   const { rows: messages } = useTable("chat_messages", { sort: byCreatedAsc });
-  const { send, thinking, error } = useBrain();
-  const recorder = useAudioRecorder();
-  const levelRef = useRef(0);
-  levelRef.current = recorder.level;
+  const { send, thinking: textThinking, error } = useBrain();
+  const voice = useVoice();
   const [text, setText] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [pill, setPill] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const last = messages[messages.length - 1];
+  // La píldora muestra: lo que dices (en vivo) → la respuesta
   useEffect(() => {
-    if (last?.role === "assistant") setPill(last.content);
-  }, [last?.id, last?.role, last?.content]);
+    if (voice.mode === "listening") setPill(voice.transcript);
+  }, [voice.mode, voice.transcript]);
+  useEffect(() => {
+    if (voice.reply) setPill(voice.reply);
+  }, [voice.reply]);
+  useEffect(() => {
+    if (voice.notice) setPill(voice.notice);
+  }, [voice.notice]);
 
-  const mode: DotMode = recorder.recording ? "listening" : thinking ? "thinking" : !online ? "offline" : "idle";
+  const thinking = textThinking || voice.mode === "thinking";
+  const mode: DotMode =
+    voice.mode === "listening" ? "listening" : voice.mode === "speaking" ? "speaking" : thinking ? "thinking" : !online ? "offline" : "idle";
 
   const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -48,25 +50,9 @@ export default function BrainPage() {
     if (!t) return;
     setText("");
     setPill(t);
-    await send(t);
+    const res = await send(t);
+    if (res) await voice.speak(res.reply);
   };
-
-  const startTalk = () => void recorder.start();
-  const endTalk = async () => {
-    const r = await recorder.stop();
-    if (!r || r.blob.size === 0 || !kvFactory || !user) return;
-    // Fase 2: la nota de voz se guarda como memoria (transcripción con Whisper en la Fase 3).
-    await enqueueAudio(kvFactory, { userId: user.id, ...r });
-    setPill("Nota de voz guardada, hermano.");
-    if (navigator.onLine) void processAudioQueue(kvFactory, user.id);
-  };
-
-  // Otros componentes (botón flotante, notificación) piden hablar
-  useEffect(() => {
-    const onTalk = () => setPill("Te escucho, hermano. Mantén pulsado el botón rojo.");
-    window.addEventListener(JARVIS_EVENTS.talk, onTalk);
-    return () => window.removeEventListener(JARVIS_EVENTS.talk, onTalk);
-  }, []);
 
   const toggleFloating = () => {
     if (!features.floatingMode) {
@@ -81,6 +67,9 @@ export default function BrainPage() {
     const h = new Date().getHours();
     return h < 6 ? "¿Todavía despierto" : h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches";
   }, []);
+
+  const pillText =
+    voice.mode === "listening" ? pill || "Te escucho…" : thinking ? (voice.transcript ? `«${voice.transcript}»` : "Pensando…") : pill;
 
   return (
     <div className="flex min-h-[calc(100dvh-120px)] flex-col">
@@ -108,32 +97,58 @@ export default function BrainPage() {
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6">
         <p className="text-center text-sm text-white/45">
-          {greeting}, {userName}{greeting.startsWith("¿") ? "?" : "."}
+          {greeting}, {userName}
+          {greeting.startsWith("¿") ? "?" : "."}
         </p>
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 120, damping: 14 }}>
-          <LiquidDot mode={mode} getLevel={() => levelRef.current} size={200} />
+          <LiquidDot mode={mode} getLevel={voice.getLevel} size={200} onClick={() => voice.activate("button")} ariaLabel={`Hablar con ${assistantName}`} />
         </motion.div>
 
         {/* Píldora de transcripción en vivo */}
         <div className="flex min-h-[52px] w-full justify-center">
           <AnimatePresence mode="wait">
-            {(pill || recorder.recording || thinking) && (
+            {pillText && (
               <motion.div
-                key={recorder.recording ? "rec" : thinking ? "think" : pill}
+                key={voice.mode + (thinking ? "t" : "") + (voice.mode === "listening" ? "" : pillText)}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 className="selectable max-w-[90%] rounded-full border border-white/10 bg-white/[0.06] px-5 py-3 text-center text-sm text-white/85 backdrop-blur"
                 aria-live="polite"
+                data-testid="transcript-pill"
               >
-                {recorder.recording ? "Te escucho…" : thinking ? "Pensando…" : pill}
+                {pillText}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-        {(error || recorder.error) && <p className="text-center text-xs text-red-300">{error ?? recorder.error}</p>}
+        {error && <p className="text-center text-xs text-red-300">{error}</p>}
 
-        <HoldToTalk active={recorder.recording} level={recorder.level} onStart={startTalk} onEnd={() => void endTalk()} />
+        <div className="flex items-center gap-5">
+          {voice.wakeWanted && !voice.wakeActive ? (
+            <button onClick={() => void voice.enableWake()} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/70" aria-label="Activar escucha" title="Activar palmadas y palabra de activación">
+              <Ear className="h-5 w-5" />
+            </button>
+          ) : (
+            <span className={`flex h-11 w-11 items-center justify-center rounded-full ${voice.wakeActive ? "text-arc" : "text-transparent"}`} title="Escuchando palmadas y tu palabra de activación" aria-hidden={!voice.wakeActive}>
+              <Ear className="h-5 w-5" />
+            </span>
+          )}
+          <HoldToTalk
+            active={voice.mode === "listening"}
+            disabled={!profile?.wake_button_enabled}
+            onStart={voice.holdStart}
+            onEnd={voice.holdEnd}
+          />
+          <button
+            onClick={voice.stop}
+            disabled={voice.mode === "idle"}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/70 disabled:opacity-0"
+            aria-label="Parar"
+          >
+            <Square className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <form onSubmit={submit} className="mt-6 flex items-center gap-2 pr-16">

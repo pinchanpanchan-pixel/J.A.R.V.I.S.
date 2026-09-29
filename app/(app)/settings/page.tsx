@@ -58,7 +58,8 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="Voz" description={features.premiumVoice ? "Voces premium con ElevenLabs." : "Plan Free: voz del sistema. Las 4 voces premium llegan con Pro."}>
-        <VoiceSelector value={(voice?.voice_key ?? "british_original") as VoiceKey} onChange={(k) => void updateVoice({ voice_key: k })} maxVoices={features.voices} />
+        <VoiceSelector value={(voice?.voice_key ?? "british_original") as VoiceKey} onChange={(k) => void updateVoice({ voice_key: k })} maxVoices={features.voices}
+          premium={features.premiumVoice} />
       </Section>
 
       <Section title="Activación" description="Cómo me despiertas. La app tiene que estar abierta.">
@@ -71,6 +72,24 @@ export default function SettingsPage() {
         <Row label="Palabra de activación" hint={`«${assistantName}» o «Hey ${assistantName}»`}>
           <Toggle checked={profile.wake_word_enabled} onChange={(v) => void updateProfile({ wake_word_enabled: v })} label="Palabra de activación" />
         </Row>
+        {profile.wake_clap_enabled && (
+          <div className="pt-3">
+            <div className="mb-1 flex justify-between text-xs text-white/50">
+              <span>Sensibilidad de las palmadas</span>
+              <span>{Math.round((1 - Number(voice?.clap_threshold ?? 0.35)) * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min={0.15}
+              max={0.8}
+              step={0.05}
+              value={1 - Number(voice?.clap_threshold ?? 0.35)}
+              onChange={(e) => void updateVoice({ clap_threshold: Math.round((1 - Number(e.target.value)) * 100) / 100 })}
+              className="w-full accent-arc"
+              aria-label="Sensibilidad de las palmadas"
+            />
+          </div>
+        )}
       </Section>
 
       <Section title="Modo flotante">

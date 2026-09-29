@@ -23,7 +23,7 @@ Con las claves de ejemplo de `.env.example` la app funciona **entera en local**:
 | `npm run build && npm start` | Producción (activa el Service Worker) |
 | `npm run check` | typecheck + lint + tests unitarios |
 | `bash supabase/tests/run.sh` | Aplica las migraciones en un Postgres 16 temporal y prueba RLS, last-write-wins y canje de códigos |
-| `bash scripts/e2e/run.sh phase1 phase2` | Compila, arranca y ejecuta los E2E en Chromium |
+| `bash scripts/e2e/run.sh phase1 phase2 phase3` | Compila, arranca y ejecuta los E2E en Chromium (la fase 3 usa un micrófono falso con WAV de palmadas y voz) |
 
 ## Arquitectura de sincronización (Fase 1)
 
@@ -55,6 +55,21 @@ UI ──escribe──> caché local (IndexedDB) ──> outbox "pending" ──
   AES-256-GCM, línea de tiempo, filtros), **Hogar** (por habitaciones), **Ajustes** (insignia dorada OWNER - Lifetime).
 - **Modo flotante**: punto arrastrable de 80 px; Document Picture-in-Picture donde exista (Chrome/Edge escritorio);
   notificación persistente con acciones en Android.
+
+## Voz (Fase 3)
+
+- **TTS**: ElevenLabs en *streaming* (`/api/tts`, modelo `eleven_flash_v2_5`). La respuesta se trocea en frases:
+  la primera suena en cuanto llegan los primeros bytes (<400 ms) y la siguiente se precarga. Sin clave o en plan
+  Free → Web Speech API. Voces por `.env`: `VOICE_BRITISH_ORIGINAL`, `VOICE_YOUNG_BROTHER`, `VOICE_DEEP_CALM`, `VOICE_SPANISH_BROTHER`.
+- **STT**: Whisper (`/api/stt`) con WAV de 16 kHz; transcripción en vivo en la píldora con el reconocimiento del navegador.
+- **Activación** (cada una se activa/desactiva en Ajustes):
+  1. **Doble palmada**: Web Audio, 2 transitorios en <800 ms sobre un ruido de fondo adaptativo (sensibilidad ajustable).
+  2. **Botón rojo** de mantener pulsado.
+  3. **Palabra de activación**: el nombre elegido en el paso 1 («Hey Friday» si le llamas Friday), con tolerancia a errores.
+- **Sonido de activación** «bup bup» original (`/sounds/activate.mp3`), y 5 alertas originales en `/sounds/alerts/`.
+- **Interrupciones**: tú le cortas mientras habla (botón, palmada o su nombre); él te interrumpe si hay algo urgente (`interrupt()`).
+- **Sin conexión**: el botón graba en local y, al volver la red, se transcribe y se guarda como memoria.
+- Límite de iOS: la escucha continua solo funciona con la app abierta y en primer plano.
 
 ## Seguridad
 
@@ -95,6 +110,6 @@ Las apps de Apple se conectarán mediante **Atajos de iOS**; la arquitectura de 
 
 - [x] **Fase 1** — base, Supabase, esquema, auth, sincronización y modo sin conexión
 - [x] **Fase 2** — onboarding y UI
-- [ ] Fase 3 — voz
+- [x] **Fase 3** — voz
 - [ ] Fase 4 — skills y WorldMonitor
 - [ ] Fase 5 — pagos, códigos y panel de propietario

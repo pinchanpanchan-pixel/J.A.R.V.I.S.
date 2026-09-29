@@ -142,6 +142,7 @@ export function LiquidDot({ mode, getLevel, size = 220, className, onClick, aria
       onClick={onClick}
       role={onClick ? "button" : "img"}
       aria-label={ariaLabel ?? `J.A.R.V.I.S. ${mode}`}
+      data-mode={mode}
       className={className}
       style={{ width: box, height: box, margin: -(box - size) / 2, cursor: onClick ? "pointer" : undefined }}
     />

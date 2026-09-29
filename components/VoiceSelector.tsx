@@ -11,11 +11,14 @@ export function VoiceSelector({
   value,
   onChange,
   maxVoices = 4,
+  premium = true,
 }: {
   value: VoiceKey;
   onChange: (v: VoiceKey) => void;
   /** Plan Free: solo 1 voz. */
   maxVoices?: number;
+  /** Voces premium (ElevenLabs) disponibles en el plan. */
+  premium?: boolean;
 }) {
   const [playing, setPlaying] = useState<VoiceKey | null>(null);
 
@@ -27,7 +30,7 @@ export function VoiceSelector({
     }
     setPlaying(key);
     try {
-      await previewVoice(key);
+      await previewVoice(key, premium);
     } finally {
       setPlaying((p) => (p === key ? null : p));
     }

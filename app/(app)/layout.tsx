@@ -6,6 +6,7 @@ import { QuickNoteFab } from "@/components/QuickNote";
 import { OnboardingCard } from "@/components/OnboardingCard";
 import { FloatingDot } from "@/components/FloatingDot";
 import { useProfile } from "@/hooks/useProfile";
+import { VoiceProvider } from "@/components/providers/VoiceProvider";
 
 function Shell({ children }: { children: ReactNode }) {
   const { profile } = useProfile();
@@ -31,7 +32,9 @@ function Shell({ children }: { children: ReactNode }) {
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <RequireAuth>
-      <Shell>{children}</Shell>
+      <VoiceProvider>
+        <Shell>{children}</Shell>
+      </VoiceProvider>
     </RequireAuth>
   );
 }

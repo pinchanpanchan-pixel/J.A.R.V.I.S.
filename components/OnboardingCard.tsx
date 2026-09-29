@@ -104,6 +104,7 @@ export function OnboardingCard() {
           value={(voice?.voice_key ?? "british_original") as VoiceKey}
           onChange={(k) => void updateVoice({ voice_key: k })}
           maxVoices={features.voices}
+          premium={features.premiumVoice}
         />
       );
       break;

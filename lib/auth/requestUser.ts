@@ -8,7 +8,9 @@ import { getSupabaseServer } from "@/lib/supabase/server";
  */
 export async function getRequestUser(req: Request): Promise<{ id: string; email: string } | null> {
   if (isMockMode) {
-    const id = req.headers.get("x-jarvis-mock-user");
+    // <audio src> no puede enviar cabeceras: en modo simulado se acepta también ?mockUser=
+    const q = new URL(req.url).searchParams;
+    const id = req.headers.get("x-jarvis-mock-user") ?? q.get("mockUser");
     const email = req.headers.get("x-jarvis-mock-email") ?? "";
     return id && /^[0-9a-f-]{36}$/i.test(id) ? { id, email } : null;
   }

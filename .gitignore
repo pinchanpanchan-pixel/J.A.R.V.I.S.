@@ -19,3 +19,4 @@ public/swe-worker-*.js
 supabase/.temp
 public/fallback-*.js
 *.whl
+scripts/e2e/fixtures/*.wav

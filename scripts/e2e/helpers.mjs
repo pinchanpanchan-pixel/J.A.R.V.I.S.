@@ -5,8 +5,17 @@ export const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 export const shotsDir = process.env.SHOTS_DIR;
 export const log = (...a) => console.log("•", ...a);
 
-export async function setup() {
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+let current = (e) => {
+  console.error(e);
+  process.exit(1);
+};
+let handlersInstalled = false;
+
+export async function setup({ args = [] } = {}) {
+  const browser = await chromium.launch({
+    executablePath: process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+    args,
+  });
   const errors = [];
   const pages = [];
   const fail = async (m) => {
@@ -20,8 +29,13 @@ export async function setup() {
     if (errors.length) console.error("errores JS:\n" + errors.join("\n"));
     process.exit(1);
   };
-  process.on("unhandledRejection", fail);
-  process.on("uncaughtException", fail);
+  // Un único manejador global que siempre usa la sesión de navegador más reciente.
+  current = fail;
+  if (!handlersInstalled) {
+    handlersInstalled = true;
+    process.on("unhandledRejection", (e) => current(e));
+    process.on("uncaughtException", (e) => current(e));
+  }
   const track = (p) => {
     p.on("pageerror", (e) => errors.push(String(e)));
     p.on("dialog", (d) => d.accept());
@@ -34,7 +48,8 @@ export async function setup() {
     if (errors.length) await fail("errores JS:\n" + errors.join("\n"));
     await browser.close();
   };
-  return { browser, errors, pages, fail, track, shot, finish };
+  const closeOnly = () => browser.close();
+  return { browser, errors, pages, fail, track, shot, finish, closeOnly };
 }
 
 export async function login(ctx, track, email) {
