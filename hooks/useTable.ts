@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { RowOf, TableName } from "@/types/db";
 import { useSync } from "@/components/providers/SyncProvider";
 
@@ -11,14 +11,18 @@ export function useTable<T extends TableName>(
   const { engine, ready } = useSync();
   const [rows, setRows] = useState<RowOf<T>[]>([]);
   const [loading, setLoading] = useState(true);
-  const { sort } = opts;
+  // La función de orden se guarda en una ref: si se pasa en línea (nueva en cada render)
+  // no debe volver a disparar la carga (evita bucles de renderizado).
+  const sortRef = useRef(opts.sort);
+  sortRef.current = opts.sort;
 
   const load = useCallback(async () => {
     if (!engine || !ready) return;
     const list = await engine.list(table);
+    const sort = sortRef.current;
     setRows(sort ? [...list].sort(sort) : list);
     setLoading(false);
-  }, [engine, ready, table, sort]);
+  }, [engine, ready, table]);
 
   useEffect(() => {
     if (!engine || !ready) return;

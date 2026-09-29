@@ -5,8 +5,11 @@ import { BottomNav } from "@/components/BottomNav";
 import { QuickNoteFab } from "@/components/QuickNote";
 import { OnboardingCard } from "@/components/OnboardingCard";
 import { FloatingDot } from "@/components/FloatingDot";
+import { DiaryPrompt } from "@/components/DiaryPrompt";
 import { useProfile } from "@/hooks/useProfile";
 import { VoiceProvider } from "@/components/providers/VoiceProvider";
+import { AutomationRunner } from "@/components/providers/AutomationRunner";
+import { WorldMonitorProvider } from "@/components/providers/WorldMonitorProvider";
 
 function Shell({ children }: { children: ReactNode }) {
   const { profile } = useProfile();
@@ -23,6 +26,7 @@ function Shell({ children }: { children: ReactNode }) {
         </Suspense>
         <BottomNav />
         {!onboarding && <FloatingDot />}
+        {!onboarding && <DiaryPrompt />}
       </div>
       {onboarding && <OnboardingCard />}
     </>
@@ -33,6 +37,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <RequireAuth>
       <VoiceProvider>
+        <AutomationRunner />
+        <WorldMonitorProvider />
         <Shell>{children}</Shell>
       </VoiceProvider>
     </RequireAuth>

@@ -23,7 +23,7 @@ Con las claves de ejemplo de `.env.example` la app funciona **entera en local**:
 | `npm run build && npm start` | Producción (activa el Service Worker) |
 | `npm run check` | typecheck + lint + tests unitarios |
 | `bash supabase/tests/run.sh` | Aplica las migraciones en un Postgres 16 temporal y prueba RLS, last-write-wins y canje de códigos |
-| `bash scripts/e2e/run.sh phase1 phase2 phase3` | Compila, arranca y ejecuta los E2E en Chromium (la fase 3 usa un micrófono falso con WAV de palmadas y voz) |
+| `bash scripts/e2e/run.sh phase1 phase2 phase3 phase4` | Compila, arranca y ejecuta los E2E en Chromium (la fase 3 usa un micrófono falso con WAV de palmadas y voz) |
 
 ## Arquitectura de sincronización (Fase 1)
 
@@ -71,6 +71,26 @@ UI ──escribe──> caché local (IndexedDB) ──> outbox "pending" ──
 - **Sin conexión**: el botón graba en local y, al volver la red, se transcribe y se guarda como memoria.
 - Límite de iOS: la escucha continua solo funciona con la app abierta y en primer plano.
 
+## Skills y WorldMonitor (Fase 4)
+
+- **Cerebro** (`services/aiRouter.ts`): primero las claves del usuario (rotación), luego Claude (`claude-opus-5-5`)
+  con la clave del propietario; si un proveedor da 429/5xx/red, salta al siguiente. Ajustes → Avanzado → Proveedores
+  de IA: claves ilimitadas (OpenAI, Anthropic, Gemini, Groq, OpenRouter), cifradas y sincronizadas, con el proveedor activo.
+- **Skills** (`skills/<nombre>/index.ts`, cada una con `triggerKeywords` y `execute`): nota rápida, memoria,
+  navegación, resúmenes («¿qué hicimos ayer?»), diario, hogar, música, agenda, correo, contactos, Notion,
+  memoria visual, importación y WorldMonitor. Orden: atajo → skill → cerebro.
+- **Atajos** (`config/shortcuts.json` + Ajustes → Atajos, sincronizados).
+- **Hogar** (`services/homeController.ts` + `connectors/home/*`): «apaga todas las luces», «pon luz roja al 50 %»,
+  «apaga todo a las 11pm» (crea una automatización cron). Govee y Hue con API real; HomeKit por Atajo; resto simulado.
+- **Diario**: análisis con Claude (salida estructurada) o heurístico, cifrado, dictado por voz, recordatorio en la app y por push.
+- **Importa tu pasado**: .zip de WhatsApp (iOS/Android), por días, con fechas, participantes y adjuntos; barra de progreso.
+- **Memoria visual**: foto → EXIF → Claude Vision (descripción, OCR, objetos, caras) → recuerdo con miniatura.
+- **WorldMonitor**: sismos USGS (magnitud 3–8, radio 50–2000 km, cada 2 min), clima severo y aire (OpenWeather);
+  alerta a pantalla completa con sirena, voz «Ey hermano, hay un sismo de magnitud X a Y km de ti, ¿estás bien?» y qué hacer.
+- **Apps de Apple**: token personal + endpoint `/api/ios/ingest` para enviar Notas, Recordatorios, Contactos y Calendario desde Atajos.
+- **Edge Functions** (`supabase/functions`): `world-monitor`, `diary-reminders`, `home-automations`.
+  Programación en `supabase/cron.sql`. El código compartido se genera con `node scripts/sync_edge_shared.mjs`.
+
 ## Seguridad
 
 - RLS en todas las tablas (`user_id = auth.uid()`).
@@ -111,5 +131,5 @@ Las apps de Apple se conectarán mediante **Atajos de iOS**; la arquitectura de 
 - [x] **Fase 1** — base, Supabase, esquema, auth, sincronización y modo sin conexión
 - [x] **Fase 2** — onboarding y UI
 - [x] **Fase 3** — voz
-- [ ] Fase 4 — skills y WorldMonitor
+- [x] **Fase 4** — skills y WorldMonitor
 - [ ] Fase 5 — pagos, códigos y panel de propietario

@@ -8,6 +8,7 @@ import { useSync } from "@/components/providers/SyncProvider";
 import { MOCK_DEVICES } from "@/connectors/home/mockDevices";
 import { stableId } from "@/lib/ids";
 import { isMockMode } from "@/lib/env";
+import { setDeviceState } from "@/services/homeClient";
 import type { DeviceState, SmartHomeDeviceRow } from "@/types/db";
 
 export default function HomeTab() {
@@ -18,7 +19,7 @@ export default function HomeTab() {
   const homeConnected = connectors.filter((c) => c.kind === "home" && c.enabled);
 
   const change = async (d: SmartHomeDeviceRow, patch: DeviceState) => {
-    await engine?.update("smart_home_devices", d.id, { state: { ...d.state, ...patch } });
+    if (engine) await setDeviceState(engine, d, patch);
   };
 
   const allOff = async () => {

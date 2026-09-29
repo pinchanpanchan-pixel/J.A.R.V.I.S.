@@ -1,0 +1,36 @@
+{
+  "$comment": "Atajos por defecto de J.A.R.V.I.S. Editables en Ajustes → Atajos (los cambios del usuario se sincronizan en la tabla shortcuts).",
+  "actions": [
+    { "id": "open_quick_notes", "label": "Abrir notas rápidas", "params": [] },
+    { "id": "open_memories", "label": "Ir a Memorias", "params": [] },
+    { "id": "create_quick_note", "label": "Crear nota rápida", "params": [] },
+    { "id": "open_diary", "label": "Abrir el diario", "params": [] },
+    { "id": "recap_yesterday", "label": "¿Qué hicimos ayer?", "params": [] },
+    { "id": "summarize_day", "label": "Resumen de mi día", "params": [] },
+    { "id": "lights_off", "label": "Apagar todas las luces", "params": [] },
+    { "id": "play_music", "label": "Poner mi música", "params": [] },
+    { "id": "home_command", "label": "Orden del hogar", "params": ["command"] },
+    { "id": "navigate", "label": "Abrir sección", "params": ["path"] },
+    { "id": "say", "label": "Responder con una frase", "params": ["text"] },
+    { "id": "ask", "label": "Preguntar al cerebro", "params": ["prompt"] }
+  ],
+  "defaults": [
+    { "id": "default-open-notes", "trigger": "abre el bloc de notas", "action": "open_quick_notes", "params": {} },
+    { "id": "default-open-notes-2", "trigger": "abre mis notas", "action": "open_quick_notes", "params": {} },
+    { "id": "default-open-notes-en", "trigger": "open notes block", "action": "open_quick_notes", "params": {} },
+    { "id": "default-open-memory", "trigger": "abre la memoria", "action": "open_memories", "params": {} },
+    { "id": "default-open-memory-en", "trigger": "open memory", "action": "open_memories", "params": {} },
+    { "id": "default-quick-note", "trigger": "crea nota rápida", "action": "create_quick_note", "params": {} },
+    { "id": "default-quick-note-en", "trigger": "create quick note", "action": "create_quick_note", "params": {} },
+    { "id": "default-open-diary", "trigger": "abre el diario", "action": "open_diary", "params": {} },
+    { "id": "default-open-diary-en", "trigger": "open diary", "action": "open_diary", "params": {} },
+    { "id": "default-yesterday", "trigger": "qué hicimos ayer", "action": "recap_yesterday", "params": {} },
+    { "id": "default-yesterday-en", "trigger": "what did we do yesterday", "action": "recap_yesterday", "params": {} },
+    { "id": "default-day", "trigger": "resume mi día", "action": "summarize_day", "params": {} },
+    { "id": "default-day-en", "trigger": "summarize my day", "action": "summarize_day", "params": {} },
+    { "id": "default-lights", "trigger": "apaga todas las luces", "action": "lights_off", "params": {} },
+    { "id": "default-lights-en", "trigger": "turn off all lights", "action": "lights_off", "params": {} },
+    { "id": "default-music", "trigger": "pon mi música", "action": "play_music", "params": {} },
+    { "id": "default-music-en", "trigger": "play my music", "action": "play_music", "params": {} }
+  ]
+}

@@ -10,6 +10,12 @@ import { DiaryTimePicker } from "@/components/DiaryTimePicker";
 import { LocationSelector } from "@/components/LocationSelector";
 import { ConnectorGrid } from "@/components/ConnectorGrid";
 import { PaymentCard } from "@/components/PaymentCard";
+import { AIProvidersManager } from "@/components/settings/AIProvidersManager";
+import { ShortcutsManager } from "@/components/settings/ShortcutsManager";
+import { WorldMonitorSettings } from "@/components/settings/WorldMonitorSettings";
+import { WhatsAppImport } from "@/components/settings/WhatsAppImport";
+import { enablePush } from "@/lib/push";
+import { IosShortcuts } from "@/components/settings/IosShortcuts";
 import { useProfile } from "@/hooks/useProfile";
 import { useProfileActions } from "@/hooks/useProfileActions";
 import { useRow } from "@/hooks/useTable";
@@ -25,6 +31,7 @@ export default function SettingsPage() {
   const { signOut } = useAuth();
   const location = useRow("user_locations", user ? stableId(user.id, "primary-location") : null);
   const [locOpen, setLocOpen] = useState(false);
+  const [pushState, setPushState] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
   const [aName, setAName] = useState("");
   useEffect(() => {
@@ -109,6 +116,30 @@ export default function SettingsPage() {
           label={profile.diary_reminder_label}
           onChange={(time, label) => void updateProfile({ diary_reminder_time: time, diary_reminder_label: label })}
         />
+        <button
+          onClick={async () => {
+            const r = await enablePush();
+            setPushState(r);
+          }}
+          className="jv-btn-ghost mt-3 w-full text-sm"
+        >
+          Activar notificaciones
+        </button>
+        {pushState && (
+          <p className="mt-2 text-center text-[11px] text-white/45">
+            {pushState === "enabled"
+              ? "Notificaciones activadas en este dispositivo."
+              : pushState === "local_only"
+                ? "Te aviso mientras la app esté abierta (falta configurar el servidor de notificaciones)."
+                : pushState === "denied"
+                  ? "Has bloqueado las notificaciones. Actívalas en los ajustes del sistema."
+                  : "En iPhone: añade la app a la pantalla de inicio para recibir notificaciones."}
+          </p>
+        )}
+      </Section>
+
+      <Section id="worldmonitor" title="WorldMonitor" description={features.worldMonitor ? "Te aviso si pasa algo cerca de ti." : "Disponible en Pro Lite y Pro."}>
+        <WorldMonitorSettings locked={!features.worldMonitor} />
       </Section>
 
       <Section title="Ubicación" description="La uso para WorldMonitor: sismos, clima y aire cerca de ti.">
@@ -125,8 +156,24 @@ export default function SettingsPage() {
         <ConnectorGrid connectors={APP_CONNECTORS} maxEnabled={features.maxConnectors} locked={!features.connectors} />
       </Section>
 
+      <Section id="atajos-ios" title="Apps de Apple (Atajos de iOS)" description="Notas, Recordatorios, Contactos y Calendario de Apple llegan a tu memoria con un Atajo.">
+        <IosShortcuts />
+      </Section>
+
       <Section id="hogar" title="Hogar inteligente">
         <ConnectorGrid connectors={HOME_CONNECTORS} locked={!features.smartHome} />
+      </Section>
+
+      <Section id="atajos" title="Atajos">
+        <ShortcutsManager locked={!features.shortcuts} />
+      </Section>
+
+      <Section id="importar" title="Importa tu pasado" description="Exporta un chat en WhatsApp (Más → Exportar chat → Incluir archivos) y súbelo aquí.">
+        <WhatsAppImport locked={!features.importPast} />
+      </Section>
+
+      <Section id="avanzado" title="Avanzado · Proveedores de IA">
+        <AIProvidersManager locked={!features.multiProvider} />
       </Section>
 
       {!isOwner && (

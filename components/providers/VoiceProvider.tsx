@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useProfile } from "@/hooks/useProfile";
-import { useBrain } from "@/hooks/useBrain";
+import { useAssistant } from "@/hooks/useAssistant";
 import { useSync } from "@/components/providers/SyncProvider";
 import { registerOfflineTranscriber } from "@/components/providers/OfflineAudioSync";
 import { enqueueAudio, processAudioQueue } from "@/lib/offline/audioQueue";
@@ -47,7 +47,7 @@ const VoiceContext = createContext<VoiceContextValue | null>(null);
 export function VoiceProvider({ children }: { children: ReactNode }) {
   const { profile, voice, features, assistantName, userName, user } = useProfile();
   const { kvFactory } = useSync();
-  const { send } = useBrain();
+  const { handle } = useAssistant();
 
   const [mode, setModeState] = useState<VoiceMode>("idle");
   const modeRef = useRef<VoiceMode>("idle");
@@ -137,14 +137,14 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         return;
       }
       setTranscript(text);
-      const res = await send(text, { source: "voice" });
-      if (!res) {
+      const res = await handle(text, { source: "voice" });
+      if (!res?.reply) {
         setMode("idle");
         return;
       }
       await speak(res.reply);
     },
-    [kvFactory, user, send, speak],
+    [kvFactory, user, handle, speak],
   );
 
   // ------------------------------------------------------------------

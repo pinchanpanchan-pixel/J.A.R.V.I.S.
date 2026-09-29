@@ -10,7 +10,7 @@ import { SyncBadge } from "@/components/MessageCenter";
 import { useProfile } from "@/hooks/useProfile";
 import { useProfileActions } from "@/hooks/useProfileActions";
 import { useTable } from "@/hooks/useTable";
-import { useBrain } from "@/hooks/useBrain";
+import { useAssistant } from "@/hooks/useAssistant";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useVoice } from "@/components/providers/VoiceProvider";
 
@@ -22,7 +22,7 @@ export default function BrainPage() {
   const { updateProfile } = useProfileActions();
   const online = useOnlineStatus();
   const { rows: messages } = useTable("chat_messages", { sort: byCreatedAsc });
-  const { send, thinking: textThinking, error } = useBrain();
+  const { handle, busy: textThinking, error } = useAssistant();
   const voice = useVoice();
   const [text, setText] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -50,8 +50,8 @@ export default function BrainPage() {
     if (!t) return;
     setText("");
     setPill(t);
-    const res = await send(t);
-    if (res) await voice.speak(res.reply);
+    const res = await handle(t);
+    if (res?.reply) await voice.speak(res.reply);
   };
 
   const toggleFloating = () => {

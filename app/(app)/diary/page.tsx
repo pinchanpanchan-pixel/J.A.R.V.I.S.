@@ -1,16 +1,21 @@
 "use client";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Calendar, Lock, PenLine, Search, X } from "lucide-react";
 import { DiaryTimeline, EMOTION_EMOJI } from "@/components/DiaryTimeline";
 import { Sheet } from "@/components/ui/Sheet";
 import { useTable } from "@/hooks/useTable";
 import { useProfile } from "@/hooks/useProfile";
 import { useSync } from "@/components/providers/SyncProvider";
-import { sealSecret } from "@/lib/api";
+import { apiJson } from "@/lib/api";
+import { isMockMode } from "@/lib/env";
+import { DictateButton } from "@/components/DictateButton";
+import type { DiaryAnalysis } from "@/lib/diary/analysis";
 import { searchItems } from "@/lib/search";
 import { localDate } from "@/lib/dates";
 
-export default function DiaryPage() {
+function DiaryInner() {
   const { features, userName, profile } = useProfile();
   const { engine } = useSync();
   const { rows } = useTable("diary_entries");
@@ -21,6 +26,11 @@ export default function DiaryPage() {
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inputMode, setInputMode] = useState<"text" | "voice">("text");
+  const params = useSearchParams();
+  useEffect(() => {
+    if (params.get("write") === "1") setWriting(true);
+  }, [params]);
 
   const emotions = useMemo(() => Array.from(new Set(rows.flatMap((r) => r.emotions))).slice(0, 12), [rows]);
   const filtered = useMemo(() => {
@@ -35,17 +45,21 @@ export default function DiaryPage() {
     setSaving(true);
     setError(null);
     try {
-      const { ciphertext } = await sealSecret(text.trim(), "diary");
+      const keys = isMockMode ? (await engine.list("ai_provider_keys")).map((k) => ({ id: k.id, provider: k.provider, key_ciphertext: k.key_ciphertext, enabled: k.enabled })) : undefined;
+      const { analysis, ciphertext } = await apiJson<{ analysis: DiaryAnalysis; ciphertext: string }>("/api/diary/analyze", {
+        method: "POST",
+        body: JSON.stringify({ text: text.trim(), userName, keys }),
+      });
       await engine.insert("diary_entries", {
         entry_date: localDate(),
         content_ciphertext: ciphertext,
-        summary: text.trim().split(/(?<=[.!?])\s/)[0].slice(0, 160),
-        sentiment: null,
-        emotions: [],
-        key_events: [],
-        thoughts: [],
-        tags: [],
-        input_mode: "text",
+        summary: analysis.summary,
+        sentiment: analysis.sentiment,
+        emotions: analysis.emotions,
+        key_events: analysis.key_events,
+        thoughts: analysis.thoughts,
+        tags: analysis.tags,
+        input_mode: inputMode,
         audio_path: null,
       });
       setText("");
@@ -120,11 +134,28 @@ export default function DiaryPage() {
 
       <Sheet open={writing} onClose={() => setWriting(false)} title={`Hermano, ¿cómo fue hoy?`}>
         <textarea className="jv-input min-h-[200px] resize-y" placeholder="Cuéntamelo todo. Solo lo vamos a saber tú y yo." value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+        <div className="mt-2 flex items-center justify-between">
+          <DictateButton
+            onText={(t) => {
+              setInputMode("voice");
+              setText((prev) => (prev ? `${prev} ${t}` : t));
+            }}
+          />
+          <span className="text-[11px] text-white/35">Analizo emociones y momentos clave, y lo cifro.</span>
+        </div>
         {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
         <button onClick={() => void save()} disabled={saving || !text.trim()} className="jv-btn-primary mt-3 w-full">
           <Lock className="h-4 w-4" /> Guardar cifrado
         </button>
       </Sheet>
     </div>
+  );
+}
+
+export default function DiaryPage() {
+  return (
+    <Suspense>
+      <DiaryInner />
+    </Suspense>
   );
 }

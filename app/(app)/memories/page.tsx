@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Pin, Plus, Search, Trash2, X } from "lucide-react";
 import { MemoryCard, formatWhen } from "@/components/MemoryCard";
+import { PhotoCapture } from "@/components/PhotoCapture";
 import { Segmented } from "@/components/ui/Segmented";
 import { Sheet } from "@/components/ui/Sheet";
 import { byCreatedDesc, useTable } from "@/hooks/useTable";
@@ -109,9 +110,12 @@ function MemoriesInner() {
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Memorias</h1>
         {tab === "blocks" && (
+          <div className="flex gap-2">
+            <PhotoCapture autoOpen={params.get("photo") === "1"} />
           <button onClick={() => setEditing("new")} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-arc" aria-label="Nuevo bloque">
             <Plus className="h-5 w-5" />
           </button>
+          </div>
         )}
       </header>
       <Segmented<Tab>

@@ -5,6 +5,7 @@ import { Toggle } from "@/components/ui/Toggle";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 import { useTable } from "@/hooks/useTable";
 import { useProfileActions } from "@/hooks/useProfileActions";
+import { apiJson } from "@/lib/api";
 import type { ConnectorMeta } from "@/connectors/types";
 
 const AUTH_LABEL: Record<ConnectorMeta["auth"], string> = {
@@ -34,9 +35,18 @@ export function ConnectorGrid({
   const allOn = selectable.every((c) => enabled.has(c.id));
   const enabledCount = connectors.filter((c) => enabled.has(c.id)).length;
 
-  const toggle = (c: ConnectorMeta, on: boolean) => {
+  const toggle = async (c: ConnectorMeta, on: boolean) => {
     if (on && maxEnabled !== null && enabledCount >= maxEnabled) return;
-    void setConnector(c, on);
+    await setConnector(c, on);
+    // OAuth real: redirige al proveedor (en modo simulado queda como «mock»)
+    if (on && c.auth === "oauth") {
+      try {
+        const r = await apiJson<{ url?: string; mock?: boolean }>(`/api/connectors/${c.id}/start`);
+        if (r.url) window.location.href = r.url;
+      } catch {
+        /* sin OAuth configurado para este proveedor */
+      }
+    }
   };
 
   const selectAll = () => {
@@ -77,14 +87,14 @@ export function ConnectorGrid({
           return (
             <div
               key={c.id}
-              onClick={() => !disabled && toggle(c, !on)}
+              onClick={() => !disabled && void toggle(c, !on)}
               className={`flex cursor-pointer flex-col gap-2.5 rounded-2xl border p-3 transition ${
                 on ? "border-arc/40 bg-arc/[0.08]" : "border-white/10 bg-white/[0.04]"
               } ${disabled ? "cursor-default opacity-50" : ""}`}
             >
               <div className="flex items-center justify-between">
                 <BrandLogo meta={c} size={36} />
-                <Toggle checked={on} disabled={disabled} onChange={(v) => toggle(c, v)} label={c.name} />
+                <Toggle checked={on} disabled={disabled} onChange={(v) => void toggle(c, v)} label={c.name} />
               </div>
               <div>
                 <div className="text-[13px] font-semibold leading-tight">{c.name}</div>

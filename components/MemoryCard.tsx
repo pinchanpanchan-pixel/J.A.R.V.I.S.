@@ -39,6 +39,10 @@ export function MemoryCard({ block, onClick, onTag }: { block: MemoryBlockRow; o
         <Icon className="h-3.5 w-3.5" />
         {src.label} · {formatWhen(block.original_date ?? block.created_at)}
       </div>
+      {typeof block.metadata?.thumbnail === "string" && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={block.metadata.thumbnail as string} alt="" className="mb-2 h-32 w-full rounded-2xl object-cover" />
+      )}
       {block.title && <h3 className="line-clamp-1 text-[15px] font-semibold text-white">{block.title}</h3>}
       <p className="mt-1 line-clamp-3 whitespace-pre-line text-[13.5px] leading-relaxed text-white/65">{block.content}</p>
       {block.tags.length > 0 && (
