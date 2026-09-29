@@ -33,16 +33,28 @@ export function useTable<T extends TableName>(
   return { rows, loading };
 }
 
+// Última versión conocida de cada fila: al montar otra pantalla el valor está disponible
+// desde el primer render (evita parpadeos, p.ej. ver el plan Free un instante).
+const rowCache = new Map<string, unknown>();
+
 /** Una fila por id (p.ej. perfil: users/<userId>). */
 export function useRow<T extends TableName>(table: T, id: string | null | undefined): RowOf<T> | null {
   const { engine, ready } = useSync();
-  const [row, setRow] = useState<RowOf<T> | null>(null);
+  const key = id ? `${table}:${id}` : "";
+  const [row, setRow] = useState<RowOf<T> | null>(() => (key ? ((rowCache.get(key) as RowOf<T>) ?? null) : null));
   useEffect(() => {
     if (!engine || !ready || !id) {
       setRow(null);
       return;
     }
-    const load = async () => setRow(await engine.get(table, id));
+    const cacheKey = `${table}:${id}`;
+    if (rowCache.has(cacheKey)) setRow(rowCache.get(cacheKey) as RowOf<T>);
+    const load = async () => {
+      const r = await engine.get(table, id);
+      if (r) rowCache.set(cacheKey, r);
+      else rowCache.delete(cacheKey);
+      setRow(r);
+    };
     void load();
     return engine.onTable(table, () => void load());
   }, [engine, ready, table, id]);

@@ -61,7 +61,7 @@ export async function login(ctx, track, email) {
 }
 
 /** Recorre el onboarding completo. */
-export async function completeOnboarding(p, { owner, name = "Pancho", assistant = "Friday", shot } = {}) {
+export async function completeOnboarding(p, { owner, name = "Pancho", assistant = "Friday", shot, payment } = {}) {
   await p.waitForSelector("text=¿Cómo te llamo, hermano?", { timeout: 20000 });
   const tag = owner ? "owner" : "user";
   await shot?.(p, `onb1-${tag}`);
@@ -93,7 +93,8 @@ export async function completeOnboarding(p, { owner, name = "Pancho", assistant 
   if (!owner) {
     await p.waitForSelector("text=Desbloquea a tu hermano completo");
     await shot?.(p, `onb6-${tag}`);
-    await p.click("text=Seguir con el plan Free");
+    if (payment) await payment(p);
+    else await p.click("text=Seguir con el plan Free");
   }
   await p.waitForSelector("text=Guardaré tu diario privado");
   await p.click("button:has-text('Noche')");
@@ -118,4 +119,10 @@ export async function addQuickNote(p, text) {
   await p.click('[role="dialog"] button:has-text("Guardar")');
   await p.waitForSelector('[role="dialog"]', { state: "detached" });
   return savedAt;
+}
+
+export async function logout(p) {
+  await p.click("a:has-text('Ajustes')");
+  await p.click("button:has-text('Cerrar sesión')");
+  await p.waitForURL("**/login");
 }

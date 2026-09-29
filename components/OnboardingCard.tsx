@@ -120,7 +120,21 @@ export function OnboardingCard() {
       body = <LocationSelector initial={location} onSave={async (place, method, addressLine) => saveLocation(place, method, { address_line: addressLine ?? null })} />;
       break;
     case "payment":
-      body = <PaymentCard onContinueFree={next} />;
+      body = (
+        <PaymentCard
+          onContinueFree={next}
+          onPaid={() => {
+            // Tras pagar (o canjear un código) se sigue en el paso 7, aunque ahora sea propietario.
+            // Solo avanza: si ya pasó al paso 7 o más (al hacerse propietario), no retrocede.
+            setDir(1);
+            setStepN((prev) => {
+              if ((prev ?? 0) >= 7) return prev;
+              void updateProfile({ onboarding_step: 7 });
+              return 7;
+            });
+          }}
+        />
+      );
       break;
     case "diary":
       canContinue = !!profile?.diary_reminder_time;

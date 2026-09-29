@@ -23,7 +23,7 @@ Con las claves de ejemplo de `.env.example` la app funciona **entera en local**:
 | `npm run build && npm start` | Producción (activa el Service Worker) |
 | `npm run check` | typecheck + lint + tests unitarios |
 | `bash supabase/tests/run.sh` | Aplica las migraciones en un Postgres 16 temporal y prueba RLS, last-write-wins y canje de códigos |
-| `bash scripts/e2e/run.sh phase1 phase2 phase3 phase4` | Compila, arranca y ejecuta los E2E en Chromium (la fase 3 usa un micrófono falso con WAV de palmadas y voz) |
+| `bash scripts/e2e/run.sh phase1 phase2 phase3 phase4 phase5` | Compila, arranca y ejecuta los E2E en Chromium (la fase 3 usa un micrófono falso con WAV de palmadas y voz) |
 
 ## Arquitectura de sincronización (Fase 1)
 
@@ -91,6 +91,31 @@ UI ──escribe──> caché local (IndexedDB) ──> outbox "pending" ──
 - **Edge Functions** (`supabase/functions`): `world-monitor`, `diary-reminders`, `home-automations`.
   Programación en `supabase/cron.sql`. El código compartido se genera con `node scripts/sync_edge_shared.mjs`.
 
+## Pagos, códigos y propietario (Fase 5)
+
+- **Pantalla de pago** (onboarding paso 6 y Ajustes → Suscripción): «Desbloquea a tu hermano completo», beneficios,
+  mensual/anual, planes Pro Lite / Pro / Founder (plazas restantes de 500) y botones apilados:
+  **Apple Pay** (negro, arriba, si el dispositivo lo admite), **PayPal** (amarillo), **tarjeta** (Stripe Elements) y Google Pay si existe.
+- **Stripe**: suscripciones (precios y cupones se crean solos si no pones `STRIPE_PRICE_*`) y pago único Founder.
+  El plan SOLO se activa desde el webhook firmado (`/api/payments/stripe/webhook`), de forma idempotente.
+- **PayPal**: pedido con importe calculado en el servidor; la captura se verifica (usuario e importe) antes de activar.
+- **Códigos** (`¿Tienes código?`): validación atómica en SQL; 100 % activa sin pasarela («Código aplicado, bienvenido hermano»);
+  <100 % se aplica al cobro y se consume al pagar. Semilla: PANCHAN100, BROTHER50, FRIENDS20, LAUNCH30.
+- **Propietario**: `OWNER_EMAILS` o canjear `OWNER_DISCOUNT_CODE` (PANCHAN100) ⇒ `is_owner`, `pro_lifetime`, salta el pago
+  (paso 5 → 7), insignia dorada **OWNER - Lifetime**, sin pantalla de pago y panel **Códigos de descuento** (crear, activar, borrar).
+
+## Puesta en producción (cuando tengas las claves)
+
+1. **Supabase**: crea el proyecto, `supabase db push` (migraciones), activa Google y Apple en Auth y pon las claves en `.env.local`.
+2. **Edge Functions**: `supabase functions deploy world-monitor diary-reminders home-automations`,
+   secretos `ENCRYPTION_KEY`, `VAPID_*`, `CRON_SECRET`; después ejecuta `supabase/cron.sql`.
+3. **Stripe**: claves + webhook a `https://TU_DOMINIO/api/payments/stripe/webhook` con los eventos
+   `invoice.paid`, `payment_intent.succeeded`, `customer.subscription.deleted`. Para Apple Pay, verifica tu dominio en Stripe.
+4. **PayPal**: `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_ENV=live`.
+5. **Voz y cerebro**: `ELEVENLABS_API_KEY`, `OPENAI_API_KEY` (Whisper), `ANTHROPIC_API_KEY`.
+6. **Opcional**: `OPENWEATHER_API_KEY`, OAuth de Google / Spotify / Notion, `npx web-push generate-vapid-keys`.
+7. `NEXT_PUBLIC_MOCK_MODE=false` y despliega (p. ej. Vercel) con HTTPS (obligatorio para PWA, micrófono y Apple Pay).
+
 ## Seguridad
 
 - RLS en todas las tablas (`user_id = auth.uid()`).
@@ -132,4 +157,4 @@ Las apps de Apple se conectarán mediante **Atajos de iOS**; la arquitectura de 
 - [x] **Fase 2** — onboarding y UI
 - [x] **Fase 3** — voz
 - [x] **Fase 4** — skills y WorldMonitor
-- [ ] Fase 5 — pagos, códigos y panel de propietario
+- [x] **Fase 5** — pagos, códigos y panel de propietario

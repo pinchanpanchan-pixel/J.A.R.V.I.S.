@@ -16,6 +16,8 @@ import { WorldMonitorSettings } from "@/components/settings/WorldMonitorSettings
 import { WhatsAppImport } from "@/components/settings/WhatsAppImport";
 import { enablePush } from "@/lib/push";
 import { IosShortcuts } from "@/components/settings/IosShortcuts";
+import { DiscountCodesAdmin } from "@/components/settings/DiscountCodesAdmin";
+import { PLAN_LABELS } from "@/lib/plans";
 import { useProfile } from "@/hooks/useProfile";
 import { useProfileActions } from "@/hooks/useProfileActions";
 import { useRow } from "@/hooks/useTable";
@@ -176,9 +178,24 @@ export default function SettingsPage() {
         <AIProvidersManager locked={!features.multiProvider} />
       </Section>
 
-      {!isOwner && (
+      {isOwner ? (
+        <Section id="codigos" title="Códigos de descuento" description="Solo tú ves esto. Crea, activa o borra códigos.">
+          <DiscountCodesAdmin />
+        </Section>
+      ) : (
         <Section id="suscripcion" title="Suscripción">
-          <PaymentCard />
+          {profile.subscription === "free" ? (
+            <PaymentCard />
+          ) : (
+            <div className="flex flex-col gap-1 text-sm">
+              <p>
+                Plan <b>{PLAN_LABELS[profile.subscription]}</b>
+                {profile.subscription_period === "lifetime" ? " · de por vida" : profile.subscription_period === "yearly" ? " · anual" : " · mensual"}
+              </p>
+              {profile.subscription_renews_at && <p className="text-white/50">Se renueva el {new Date(profile.subscription_renews_at).toLocaleDateString("es-ES")}.</p>}
+              {profile.subscription === "pro_lite" && <p className="mt-2 text-white/60">¿Quieres todo ilimitado? Pásate a Pro desde tu gestor de pagos.</p>}
+            </div>
+          )}
         </Section>
       )}
 

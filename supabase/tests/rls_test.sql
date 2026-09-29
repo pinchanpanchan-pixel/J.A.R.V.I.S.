@@ -2,6 +2,9 @@
 \set ON_ERROR_STOP 1
 grant all on all tables in schema public to authenticated, service_role;
 grant execute on all functions in schema public to authenticated, service_role;
+-- En Supabase los permisos por defecto se aplican al crear la función y la migración los revoca después:
+-- se reproduce ese orden para las funciones solo-backend.
+revoke all on function public.consume_discount_code(uuid, text) from public, anon, authenticated;
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.com'),
@@ -90,3 +93,22 @@ end $$;
 
 reset role;
 \echo 'ALL DB TESTS PASSED'
+
+-- consume_discount_code: solo el backend
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+do $$ begin
+  begin
+    perform public.consume_discount_code('00000000-0000-0000-0000-00000000000b', 'BROTHER50');
+    raise exception 'should have failed';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+do $$ begin
+  assert public.consume_discount_code('00000000-0000-0000-0000-00000000000b', 'brother50'), 'consumed';
+  assert public.consume_discount_code('00000000-0000-0000-0000-00000000000b', 'BROTHER50'), 'idempotent';
+  assert (select used_count from public.discount_codes where code = 'BROTHER50') = 1, 'counted once';
+  assert not public.consume_discount_code('00000000-0000-0000-0000-00000000000b', 'NOPE'), 'invalid';
+end $$;
+\echo 'PAYMENT DB TESTS PASSED'
