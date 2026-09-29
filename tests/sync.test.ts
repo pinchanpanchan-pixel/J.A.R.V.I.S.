@@ -117,5 +117,49 @@ describe("SyncEngine", () => {
     expect(row?.floating_mode_enabled).toBe(true);
     expect(row?.is_owner).toBeUndefined();
     expect(row?.subscription).toBeUndefined();
+    expect(iphone.status.failed).toBe(0);
+  });
+
+  it("actualizar el perfil existente no se rechaza (user_id generado)", async () => {
+    const { iphone, cloud } = setup();
+    await cloud.pushAsBackend("users", { id: USER, user_id: USER, email: "a@b.c", is_owner: true, subscription: "pro_lifetime", updated_at: new Date().toISOString() } as never);
+    await iphone.start(USER);
+    await iphone.update("users", USER, { onboarding_step: 3 } as never);
+    await iphone.flush();
+    expect(iphone.status.failed).toBe(0);
+    const row = await cloud.getRow("users", USER);
+    expect(row?.onboarding_step).toBe(3);
+    expect(row?.is_owner).toBe(true);
+  });
+});
+
+describe("candado entre pestañas", () => {
+  it("si otra pestaña tiene el candado, no sube (y no duplica)", async () => {
+    const cloud = new MockRemote(memoryKVFactory());
+    let pushes = 0;
+    const orig = cloud.push.bind(cloud);
+    cloud.push = async (t, r) => {
+      pushes++;
+      return orig(t, r);
+    };
+    let held = true;
+    const dev = new SyncEngine({
+      kvFactory: memoryKVFactory(),
+      remote: cloud,
+      withLock: async (_n, fn) => {
+        if (held) return false;
+        await fn();
+        return true;
+      },
+    });
+    await dev.start(USER);
+    await dev.insert("quick_notes", { content: "x" });
+    await dev.flush();
+    expect(pushes).toBe(0);
+    expect(dev.status.pending).toBe(1);
+    held = false;
+    await dev.flush();
+    expect(pushes).toBe(1);
+    expect(dev.status.pending).toBe(0);
   });
 });

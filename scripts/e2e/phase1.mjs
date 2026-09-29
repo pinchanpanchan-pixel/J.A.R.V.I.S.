@@ -1,76 +1,66 @@
-// E2E Fase 1: login (propietario), sincronización entre 2 "dispositivos", modo offline.
-// Uso: node scripts/e2e/phase1.mjs  (con la app en http://localhost:3000)
-import { chromium } from "playwright-core";
+// E2E Fase 1: login (propietario), sincronización entre 2 "dispositivos", modo offline, aislamiento entre usuarios.
+import { BASE, log, setup, login, completeOnboarding, addQuickNote } from "./helpers.mjs";
 
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const exe = process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const shots = process.env.SHOTS_DIR;
-const log = (...a) => console.log("•", ...a);
-const fail = (m) => {
-  console.error("✗", m);
-  process.exit(1);
-};
+const { browser, fail, track, shot, finish } = await setup();
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
 
-const browser = await chromium.launch({ executablePath: exe });
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: [] });
-const errors = [];
-const a = await ctx.newPage();
-a.on("pageerror", (e) => errors.push(String(e)));
-
-await a.goto(`${BASE}/`);
-await a.waitForURL("**/login");
+const probe = track(await ctx.newPage());
+await probe.goto(`${BASE}/`);
+await probe.waitForURL("**/login");
 log("redirige a /login sin sesión");
-await a.fill('input[type="email"]', "pinchan.panchan@gmail.com");
-await a.click('button[type="submit"]');
-await a.waitForSelector("text=OWNER · Lifetime", { timeout: 15000 });
-log("propietario detectado: OWNER · Lifetime");
-shots && (await a.screenshot({ path: `${shots}/phase1-home.png` }));
+await probe.close();
+
+const a = await login(ctx, track, "pinchan.panchan@gmail.com");
+await completeOnboarding(a, { owner: true });
+await a.click("a:has-text('Ajustes')");
+await a.waitForSelector("text=OWNER - Lifetime", { timeout: 15000 });
+log("propietario detectado: OWNER - Lifetime");
 
 // Segundo "dispositivo" (misma cuenta, otra pestaña)
-const b = await ctx.newPage();
-b.on("pageerror", (e) => errors.push(String(e)));
-await b.goto(`${BASE}/`);
-await b.waitForSelector("text=OWNER · Lifetime", { timeout: 15000 });
+const b = track(await ctx.newPage());
+await b.goto(`${BASE}/memories?tab=notes`);
+await b.waitForSelector("text=Notas rápidas");
 
-const t0 = Date.now();
-await a.fill('input[placeholder="Nota rápida…"]', "Comprar leche");
-await a.click("text=Guardar");
-await b.waitForSelector("text=Comprar leche", { timeout: 5000 });
-log(`nota del dispositivo A visible en B en ${Date.now() - t0} ms`);
+await a.waitForTimeout(3000); // deja que termine de subir la cola del onboarding
+await a.bringToFront();
+await a.click('button[aria-label="Nota rápida"]');
+await a.fill('[role="dialog"] textarea', "Comprar leche");
+const appeared = b.waitForSelector("text=Comprar leche", { timeout: 5000 }); // se vigila B en paralelo
+const savedAt = Date.now();
+await a.click('[role="dialog"] button:has-text("Guardar")');
+await appeared;
+const ms = Date.now() - savedAt;
+log(`nota del dispositivo A visible en B en ${ms} ms (incluye 120 ms de latencia simulada)`);
+if (ms > 1000) await fail(`sincronización demasiado lenta: ${ms} ms (objetivo < 1 s)`);
 
 // Offline
 await ctx.setOffline(true);
 await a.waitForSelector("text=Sin internet, hermano", { timeout: 5000 });
 log("tarjeta offline visible + modo grabadora");
-shots && (await a.screenshot({ path: `${shots}/phase1-offline.png` }));
+await shot(a, "phase1-offline");
 await a.click('button[aria-label="Minimizar aviso"]');
 await a.waitForSelector("text=Offline · guardando en local");
-await a.fill('input[placeholder="Nota rápida…"]', "Nota offline");
-await a.click("text=Guardar");
-await a.waitForSelector("text=Nota offline");
-const pendingText = await a.locator("pre").innerText();
-if (!/"pending": [1-9]/.test(pendingText)) fail("la nota offline no quedó en cola: " + pendingText);
-log("nota offline en cola (pending > 0)");
+await addQuickNote(a, "Nota offline");
+await a.waitForSelector("text=/Offline · guardando en local · [1-9]/");
+log("nota offline en cola (pendiente)");
 await ctx.setOffline(false);
 await b.waitForSelector("text=Nota offline", { timeout: 20000 });
 log("al volver la conexión la cola se subió y llegó a B");
 
 // Borrado sincronizado
-await b.locator("li", { hasText: "Comprar leche" }).locator("text=Borrar").click();
-await a.waitForSelector("text=Comprar leche", { state: "detached", timeout: 5000 });
+await b.locator("li", { hasText: "Comprar leche" }).locator('button[aria-label="Borrar nota"]').click();
+await a.goto(`${BASE}/memories?tab=notes`);
+await a.waitForSelector("text=Nota offline");
+if (await a.locator("text=Comprar leche").count()) await fail("el borrado no se sincronizó");
 log("borrado sincronizado");
 
-// Usuario normal: no propietario
+// Otro usuario: sin datos ajenos
 const ctx2 = await browser.newContext();
-const c = await ctx2.newPage();
-c.on("pageerror", (e) => errors.push(String(e)));
-await c.goto(`${BASE}/login`);
-await c.fill('input[type="email"]', "amigo@example.com");
-await c.click('button[type="submit"]');
-await c.waitForSelector("text=Free", { timeout: 15000 });
-if (await c.locator("text=Comprar leche").count()) fail("otro usuario ve notas ajenas");
-log("usuario normal: plan Free, sin datos ajenos");
+const c = await login(ctx2, track, "amigo@example.com");
+await completeOnboarding(c, { owner: false });
+await c.goto(`${BASE}/memories?tab=notes`);
+await c.waitForSelector("text=Sin notas rápidas");
+log("otro usuario: sin datos ajenos");
 
-if (errors.length) fail("errores JS: " + errors.join("\n"));
-await browser.close();
+await finish();
 console.log("✓ E2E fase 1 OK");

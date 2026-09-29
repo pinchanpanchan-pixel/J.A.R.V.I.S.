@@ -23,7 +23,7 @@ Con las claves de ejemplo de `.env.example` la app funciona **entera en local**:
 | `npm run build && npm start` | Producción (activa el Service Worker) |
 | `npm run check` | typecheck + lint + tests unitarios |
 | `bash supabase/tests/run.sh` | Aplica las migraciones en un Postgres 16 temporal y prueba RLS, last-write-wins y canje de códigos |
-| `bash scripts/e2e/run.sh phase1` | Compila, arranca y ejecuta el E2E en Chromium |
+| `bash scripts/e2e/run.sh phase1 phase2` | Compila, arranca y ejecuta los E2E en Chromium |
 
 ## Arquitectura de sincronización (Fase 1)
 
@@ -41,6 +41,20 @@ UI ──escribe──> caché local (IndexedDB) ──> outbox "pending" ──
 - **Cursor incremental** `server_updated_at` para no perder cambios hechos mientras un dispositivo estaba desconectado.
 - **Nada se pierde**: los rechazos definitivos del servidor van a una *dead letter* local.
 - **Plan Free** = solo este dispositivo: los datos se quedan en cola y se suben al pasar a un plan de pago.
+
+## UI (Fase 2)
+
+- **Onboarding** en una tarjeta centrada (máx. 420 px, `#0F2440` al 95 %, radio 32 px) sobre fondo azul marino
+  desenfocado con la app visible detrás. 9 pasos: identidad → voz → apps → hogar → ubicación → pago → diario →
+  tutorial → atajos. El **propietario salta el pago** (paso 5 → 7). El progreso se sincroniza entre dispositivos.
+- **Ubicación**: automática (GPS + geocodificación inversa), cascada manual País → Estado → Ciudad → Dirección
+  (datos incluidos de 9 países + API externa para el resto) o enlace de Google Maps (9 formatos + enlaces cortos).
+- **Cerebro**: punto líquido en canvas (respira 1→1,05 cada 3 s, mercurio al escuchar, late al hablar),
+  píldora de transcripción, botón rojo de mantener para hablar, chat.
+- **Memorias** (bloques estilo Notion + notas rápidas, búsqueda sin acentos, etiquetas), **Diario** (cifrado
+  AES-256-GCM, línea de tiempo, filtros), **Hogar** (por habitaciones), **Ajustes** (insignia dorada OWNER - Lifetime).
+- **Modo flotante**: punto arrastrable de 80 px; Document Picture-in-Picture donde exista (Chrome/Edge escritorio);
+  notificación persistente con acciones en Android.
 
 ## Seguridad
 
@@ -80,7 +94,7 @@ Las apps de Apple se conectarán mediante **Atajos de iOS**; la arquitectura de 
 ## Estado por fases
 
 - [x] **Fase 1** — base, Supabase, esquema, auth, sincronización y modo sin conexión
-- [ ] Fase 2 — onboarding y UI
+- [x] **Fase 2** — onboarding y UI
 - [ ] Fase 3 — voz
 - [ ] Fase 4 — skills y WorldMonitor
 - [ ] Fase 5 — pagos, códigos y panel de propietario

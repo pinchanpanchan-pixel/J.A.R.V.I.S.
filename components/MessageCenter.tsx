@@ -14,6 +14,17 @@ export function MessageCenter() {
   useEffect(() => {
     if (online) setCollapsed(false);
   }, [online]);
+  // Solo avisa de la sincronización si tarda (evita parpadeos en cada cambio).
+  const pending = status?.pending ?? 0;
+  const [slowSync, setSlowSync] = useState(false);
+  useEffect(() => {
+    if (pending === 0) {
+      setSlowSync(false);
+      return;
+    }
+    const t = setTimeout(() => setSlowSync(true), 2500);
+    return () => clearTimeout(t);
+  }, [pending]);
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-40 flex flex-col items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),12px)]">
@@ -45,7 +56,7 @@ export function MessageCenter() {
               <div className="flex-1">
                 <p className="text-sm font-medium text-white">Sin internet, hermano, pero lo estoy guardando todo en local.</p>
                 <p className="mt-0.5 text-xs text-white/60">
-                  {status?.pending ? `${status.pending} cambios esperando para subir.` : "Cuando vuelva la conexión lo subo todo en orden."}
+                  {status?.pending ? `${status.pending} ${status.pending === 1 ? "cambio esperando" : "cambios esperando"} para subir.` : "Cuando vuelva la conexión lo subo todo en orden."}
                 </p>
               </div>
               <button
@@ -59,7 +70,7 @@ export function MessageCenter() {
             <OfflineRecorder />
           </motion.div>
         )}
-        {online && status && status.pending > 0 && (
+        {online && status && status.pending > 0 && slowSync && (
           <motion.div
             key="syncing"
             initial={{ y: -20, opacity: 0 }}
@@ -68,7 +79,7 @@ export function MessageCenter() {
             className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-navy-800/90 px-4 py-2 text-xs text-white/80 backdrop-blur"
           >
             <RefreshCw className="h-3.5 w-3.5 animate-spin text-arc" />
-            Sincronizando {status.pending} cambios…
+            Sincronizando {status.pending} {status.pending === 1 ? "cambio" : "cambios"}…
           </motion.div>
         )}
         {online && status && status.failed > 0 && (
@@ -80,7 +91,7 @@ export function MessageCenter() {
             className="pointer-events-auto flex items-center gap-2 rounded-full border border-red-400/30 bg-navy-800/90 px-4 py-2 text-xs text-red-200"
           >
             <AlertTriangle className="h-3.5 w-3.5" />
-            {status.failed} cambios rechazados por el servidor (guardados en local).
+            {status.failed} {status.failed === 1 ? "cambio rechazado" : "cambios rechazados"} por el servidor (guardados en local).
           </motion.div>
         )}
       </AnimatePresence>

@@ -70,7 +70,9 @@ export class MockRemote implements Remote {
     return (await this.store(table).entries<AnyRow>()).map(([, r]) => r);
   }
 
-  private async write(table: TableName, row: AnyRow, backend: boolean): Promise<AnyRow | null> {
+  private async write(table: TableName, incoming: AnyRow, backend: boolean): Promise<AnyRow | null> {
+    // users.user_id es una columna generada (= id) en Postgres; el cliente no la envía.
+    const row = table === "users" ? { ...incoming, user_id: incoming.id } : incoming;
     const store = this.store(table);
     const existing = await store.get<AnyRow>(row.id);
     if (existing && existing.user_id !== row.user_id) {

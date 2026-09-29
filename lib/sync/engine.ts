@@ -48,6 +48,22 @@ export interface EngineOptions {
   online?: boolean;
   /** Plan con sincronización entre dispositivos. */
   syncEnabled?: boolean;
+  /**
+   * Candado entre pestañas del mismo navegador (comparten la cola en IndexedDB).
+   * Devuelve false si otra pestaña ya está subiendo la cola.
+   */
+  withLock?: (name: string, fn: () => Promise<void>) => Promise<boolean>;
+}
+
+/** Web Locks API (Chrome, Edge, Firefox, Safari 15.4+). Sin soporte: ejecuta directamente. */
+export function webLocks(): EngineOptions["withLock"] {
+  if (typeof navigator === "undefined" || !("locks" in navigator)) return undefined;
+  return async (name, fn) =>
+    navigator.locks.request(name, { ifAvailable: true }, async (lock) => {
+      if (!lock) return false;
+      await fn();
+      return true;
+    });
 }
 
 export class SyncEngine {
@@ -61,6 +77,7 @@ export class SyncEngine {
   private unsubscribeRealtime: (() => void) | null = null;
   private flushing: Promise<void> | null = null;
   private flushAgain = false;
+  private readonly withLock: NonNullable<EngineOptions["withLock"]>;
   private cacheMemo = new Map<TableName, AnyRow[]>();
   private cacheVersion = new Map<TableName, number>();
 
@@ -73,6 +90,7 @@ export class SyncEngine {
     this.meta = opts.kvFactory("meta");
     this.dead = opts.kvFactory("deadletter");
     this.outbox = new Outbox(opts.kvFactory("outbox"), this.dead);
+    this.withLock = opts.withLock ?? (async (_n, fn) => (await fn(), true));
     this.status = {
       online: opts.online ?? true,
       realtime: false,
@@ -232,13 +250,13 @@ export class SyncEngine {
   private async writeLocal(table: TableName, row: AnyRow, enqueue: boolean): Promise<void> {
     await this.cache(table).set(`${row.user_id}:${row.id}`, row);
     this.invalidate(table);
+    this.emitTable(table); // la UI se actualiza al instante
     if (enqueue && !READ_ONLY_TABLES.has(table)) {
       await this.outbox.enqueue({ table, rowId: row.id, userId: row.user_id, row });
+      void this.flush(); // sube ya; el contador se actualiza en paralelo
       await this.refreshCounts();
       this.emitStatus();
-      void this.flush();
     }
-    this.emitTable(table);
   }
 
   // -------------------------------------------------------------------
@@ -307,7 +325,12 @@ export class SyncEngine {
     this.flushing = (async () => {
       do {
         this.flushAgain = false;
-        await this.flushOnce();
+        const ran = await this.withLock("jarvis-outbox-flush", () => this.flushOnce());
+        if (!ran) {
+          // Otra pestaña está subiendo la cola: solo refresca el contador.
+          await this.refreshCounts();
+          this.emitStatus();
+        }
       } while (this.flushAgain && this.status.online);
     })().finally(() => {
       this.flushing = null;
@@ -382,7 +405,7 @@ export class SyncEngine {
 
   private async refreshCounts() {
     this.status.pending = this.userId ? await this.outbox.count(this.userId) : 0;
-    this.status.failed = (await this.dead.keys()).length;
+    this.status.failed = this.userId ? await this.outbox.deadCount(this.userId) : 0;
   }
 
   async pendingOps(): Promise<OutboxOp[]> {

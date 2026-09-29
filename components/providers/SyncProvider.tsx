@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { SyncEngine, type SyncStatus } from "@/lib/sync/engine";
+import { SyncEngine, webLocks, type SyncStatus } from "@/lib/sync/engine";
 import { getBrowserKVFactory, type KVFactory } from "@/lib/sync/kv";
 import { MockRemote } from "@/lib/sync/mockRemote";
 import { SupabaseRemote } from "@/lib/sync/supabaseRemote";
@@ -57,7 +57,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const remote = isMockMode
         ? (mockCloudRef.current = new MockRemote(factory, { latencyMs: 120 }))
         : new SupabaseRemote(getSupabaseBrowser()!);
-      const eng = new SyncEngine({ kvFactory: factory, remote, online: navigator.onLine });
+      const eng = new SyncEngine({ kvFactory: factory, remote, online: navigator.onLine, withLock: webLocks() });
       if (cancelled) return;
       setKvFactory(() => factory);
       setEngine(eng);

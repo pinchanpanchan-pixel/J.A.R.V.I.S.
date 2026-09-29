@@ -38,7 +38,8 @@ export class Outbox {
   async enqueue(op: Omit<OutboxOp, "key" | "status" | "attempts" | "lastError" | "createdAt">): Promise<OutboxOp> {
     const full: OutboxOp = {
       ...op,
-      key: nextSeqKey(),
+      // seq (orden) + usuario: permite contar pendientes leyendo solo las claves.
+      key: `${nextSeqKey()}-${op.userId}`,
       status: "pending",
       attempts: 0,
       lastError: null,
@@ -76,7 +77,11 @@ export class Outbox {
   }
 
   async count(userId?: string): Promise<number> {
-    const ops = await this.all();
-    return userId ? ops.filter((o) => o.userId === userId).length : ops.length;
+    const keys = await this.kv.keys();
+    return userId ? keys.filter((k) => k.endsWith(`-${userId}`)).length : keys.length;
+  }
+
+  async deadCount(userId: string): Promise<number> {
+    return (await this.deadLetter.keys()).filter((k) => k.endsWith(`-${userId}`)).length;
   }
 }
