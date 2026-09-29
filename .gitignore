@@ -1,0 +1,21 @@
+node_modules
+.next
+out
+.env
+.env.local
+.env*.local
+*.tsbuildinfo
+next-env.d.ts.bak
+# PWA generated
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/workbox-*.js.map
+public/worker-*.js
+public/worker-*.js.map
+public/swe-worker-*.js
+.DS_Store
+.vercel
+supabase/.temp
+public/fallback-*.js
+*.whl
