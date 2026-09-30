@@ -163,3 +163,47 @@ describe("candado entre pestañas", () => {
     expect(dev.status.pending).toBe(0);
   });
 });
+
+describe("v2: cola de rechazados", () => {
+  it("al arrancar descarta los rechazos del perfil y reenvía el perfil actual una vez", async () => {
+    const kv = memoryKVFactory();
+    const cloud = new MockRemote(memoryKVFactory());
+    let reject = true;
+    const orig = cloud.push.bind(cloud);
+    cloud.push = async (t, r) => {
+      if (t === "users" && reject) {
+        const { RemoteError } = await import("@/lib/sync/remote");
+        throw new RemoteError('users: null value in column "email" violates not-null constraint', false);
+      }
+      return orig(t, r);
+    };
+    const a = new SyncEngine({ kvFactory: kv, remote: cloud });
+    await a.start(USER);
+    await a.upsert("users", USER, { floating_mode_enabled: true } as never);
+    await a.update("users", USER, { onboarding_step: 4 } as never);
+    await a.flush();
+    expect(a.status.failed).toBe(2);
+    a.stop();
+    reject = false;
+    const b = new SyncEngine({ kvFactory: kv, remote: cloud }); // reinicio de la app
+    await b.start(USER);
+    await b.flush();
+    expect(b.status.failed).toBe(0);
+    expect((await cloud.getRow("users", USER))?.onboarding_step).toBe(4);
+  });
+
+  it("«Descartar» limpia los rechazados", async () => {
+    const cloud = new MockRemote(memoryKVFactory());
+    cloud.push = async () => {
+      const { RemoteError } = await import("@/lib/sync/remote");
+      throw new RemoteError("rls", false);
+    };
+    const e = new SyncEngine({ kvFactory: memoryKVFactory(), remote: cloud });
+    await e.start(USER);
+    await e.insert("quick_notes", { content: "x" });
+    await e.flush();
+    expect(e.status.failed).toBe(1);
+    await e.clearFailed();
+    expect(e.status.failed).toBe(0);
+  });
+});

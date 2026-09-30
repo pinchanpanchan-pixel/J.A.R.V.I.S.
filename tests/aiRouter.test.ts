@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("server-only", () => ({}));
-import { chat, AIError, NoProviderError, buildCandidates } from "@/services/aiRouter";
+import { chat, AIError, NoProviderError, buildCandidates, serverKeys } from "@/services/aiRouter";
 import { seal } from "@/lib/crypto";
 
 const U = "user-1";
@@ -9,6 +9,8 @@ const req = (keys: ReturnType<typeof key>[]) => ({ userId: U, system: "s", messa
 
 beforeEach(() => {
   delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.GEMINI_API_KEY;
+  delete process.env.AI_PRIMARY;
 });
 
 describe("aiRouter", () => {
@@ -18,20 +20,20 @@ describe("aiRouter", () => {
 
   it("usa primero las claves del usuario y la del propietario al final", () => {
     process.env.ANTHROPIC_API_KEY = "sk-ant-owner-real";
-    const c = buildCandidates("u-order", [key("a", "openai"), key("b", "groq")].map((k) => ({ ...k, key_ciphertext: seal(`x${k.id}`, "ai_key", "u-order") })), "sk-ant-owner-real");
+    const c = buildCandidates("u-order", [key("a", "openai"), key("b", "groq")].map((k) => ({ ...k, key_ciphertext: seal(`x${k.id}`, "ai_key", "u-order") })), [{ provider: "anthropic", apiKey: "sk-ant-owner-real" }]);
     expect(c.map((x) => x.keyId)).toEqual(["a", "b", "owner"]);
   });
 
   it("round-robin entre claves del usuario", () => {
     const keys = [key("a", "openai"), key("b", "openai")].map((k) => ({ ...k, key_ciphertext: seal("k", "ai_key", "u-rr") }));
-    const first = buildCandidates("u-rr", keys, null)[0].keyId;
-    const second = buildCandidates("u-rr", keys, null)[0].keyId;
+    const first = buildCandidates("u-rr", keys, [])[0].keyId;
+    const second = buildCandidates("u-rr", keys, [])[0].keyId;
     expect(first).not.toBe(second);
   });
 
   it("ignora claves desactivadas o de otro usuario", () => {
     const foreign = { id: "f", provider: "openai" as const, enabled: true, key_ciphertext: seal("k", "ai_key", "otro") };
-    const c = buildCandidates(U, [key("off", "openai", false), foreign], null);
+    const c = buildCandidates(U, [key("off", "openai", false), foreign], []);
     expect(c).toHaveLength(0);
   });
 
@@ -57,5 +59,20 @@ describe("aiRouter", () => {
     });
     await expect(chat(req([key("a", "openai")]), { call: call as never })).rejects.toMatchObject({ status: 400 });
     expect(call).toHaveBeenCalledTimes(1);
+  });
+
+  it("Gemini del servidor va antes que Claude salvo AI_PRIMARY=anthropic", () => {
+    process.env.GEMINI_API_KEY = "AIza-server-real";
+    process.env.ANTHROPIC_API_KEY = "sk-ant-owner-real";
+    expect(serverKeys().map((k) => k.provider)).toEqual(["gemini", "anthropic"]);
+    process.env.AI_PRIMARY = "anthropic";
+    expect(serverKeys().map((k) => k.provider)).toEqual(["anthropic", "gemini"]);
+  });
+
+  it("si todo acaba en 429 el error es de cuota (429)", async () => {
+    const call = vi.fn(async () => {
+      throw new AIError("quota", 429, true);
+    });
+    await expect(chat(req([]), { call: call as never, server: [{ provider: "gemini", apiKey: "k" }] })).rejects.toMatchObject({ status: 429 });
   });
 });

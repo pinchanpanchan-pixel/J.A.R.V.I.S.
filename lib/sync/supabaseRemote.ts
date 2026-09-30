@@ -31,6 +31,14 @@ export class SupabaseRemote implements Remote {
     const payload = { ...row };
     delete payload.server_updated_at;
     delete payload.search; // columna generada (memory_blocks)
+    if (table === "users") {
+      // El perfil lo crea el servidor al registrarse: SIEMPRE update por id. Un upsert es un
+      // INSERT … ON CONFLICT y Postgres valida NOT NULL (email) antes del conflicto → error 23502.
+      const { id, ...changes } = payload;
+      const { error } = await this.sb.from("users").update(changes).eq("id", id);
+      if (error) throw new RemoteError(`users: ${error.message}`, isRetryable(error));
+      return;
+    }
     const { error } = await this.sb.from(table).upsert(payload, { onConflict: "id" });
     if (error) throw new RemoteError(`${table}: ${error.message}`, isRetryable(error));
   }

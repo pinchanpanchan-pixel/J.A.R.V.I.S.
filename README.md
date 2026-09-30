@@ -112,7 +112,7 @@ UI ──escribe──> caché local (IndexedDB) ──> outbox "pending" ──
 3. **Stripe**: claves + webhook a `https://TU_DOMINIO/api/payments/stripe/webhook` con los eventos
    `invoice.paid`, `payment_intent.succeeded`, `customer.subscription.deleted`. Para Apple Pay, verifica tu dominio en Stripe.
 4. **PayPal**: `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_ENV=live`.
-5. **Voz y cerebro**: `ELEVENLABS_API_KEY`, `OPENAI_API_KEY` (Whisper), `ANTHROPIC_API_KEY`.
+5. **Voz y cerebro**: `GEMINI_API_KEY` (cerebro y voz de respaldo), `GOOGLE_TTS_API_KEY` (voces Chirp 3 HD), opcional `OPENAI_API_KEY` (Whisper).
 6. **Opcional**: `OPENWEATHER_API_KEY`, OAuth de Google / Spotify / Notion, `npx web-push generate-vapid-keys`.
 7. `NEXT_PUBLIC_MOCK_MODE=false` y despliega (p. ej. Vercel) con HTTPS (obligatorio para PWA, micrófono y Apple Pay).
 

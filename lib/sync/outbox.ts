@@ -81,6 +81,14 @@ export class Outbox {
     return userId ? keys.filter((k) => k.endsWith(`-${userId}`)).length : keys.length;
   }
 
+  async deadOps(userId: string): Promise<OutboxOp[]> {
+    return (await this.deadLetter.entries<OutboxOp>()).filter(([k]) => k.endsWith(`-${userId}`)).map(([, v]) => v);
+  }
+
+  async removeDead(key: string): Promise<void> {
+    await this.deadLetter.remove(key);
+  }
+
   async deadCount(userId: string): Promise<number> {
     return (await this.deadLetter.keys()).filter((k) => k.endsWith(`-${userId}`)).length;
   }

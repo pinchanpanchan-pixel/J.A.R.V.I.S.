@@ -1,7 +1,7 @@
 "use client";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { CloudOff, RefreshCw, CheckCircle2, AlertTriangle, ChevronUp } from "lucide-react";
+import { CloudOff, RefreshCw, CheckCircle2, AlertTriangle, ChevronUp, X } from "lucide-react";
 import { useSync } from "@/components/providers/SyncProvider";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { OfflineRecorder } from "./OfflineRecorder";
@@ -9,8 +9,9 @@ import { OfflineRecorder } from "./OfflineRecorder";
 /** Centro de mensajes: avisos del sistema (sin conexión, sincronizando…). */
 export function MessageCenter() {
   const online = useOnlineStatus();
-  const { status } = useSync();
+  const { status, engine } = useSync();
   const [collapsed, setCollapsed] = useState(false);
+  const [failedHidden, setFailedHidden] = useState(false);
   useEffect(() => {
     if (online) setCollapsed(false);
   }, [online]);
@@ -70,31 +71,43 @@ export function MessageCenter() {
             <OfflineRecorder />
           </motion.div>
         )}
-        {online && status && status.pending > 0 && slowSync && (
-          <motion.div
-            key="syncing"
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -20, opacity: 0 }}
-            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-navy-800/90 px-4 py-2 text-xs text-white/80 backdrop-blur"
-          >
-            <RefreshCw className="h-3.5 w-3.5 animate-spin text-arc" />
-            Sincronizando {status.pending} {status.pending === 1 ? "cambio" : "cambios"}…
-          </motion.div>
-        )}
-        {online && status && status.failed > 0 && (
-          <motion.div
-            key="failed"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="pointer-events-auto flex items-center gap-2 rounded-full border border-red-400/30 bg-navy-800/90 px-4 py-2 text-xs text-red-200"
-          >
-            <AlertTriangle className="h-3.5 w-3.5" />
-            {status.failed} {status.failed === 1 ? "cambio rechazado" : "cambios rechazados"} por el servidor (guardados en local).
-          </motion.div>
-        )}
       </AnimatePresence>
+      {/* Avisos de sincronización: pequeños, abajo y sin tapar la cabecera */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+150px)] z-40 flex justify-center px-4">
+        <AnimatePresence>
+          {online && status && status.pending > 0 && slowSync && (
+            <motion.div
+              key="syncing"
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 10, opacity: 0 }}
+              className="flex items-center gap-2 rounded-full border border-white/10 bg-navy-800/90 px-3 py-1.5 text-[11px] text-white/70 backdrop-blur"
+            >
+              <RefreshCw className="h-3 w-3 animate-spin text-arc" />
+              Sincronizando {status.pending} {status.pending === 1 ? "cambio" : "cambios"}…
+            </motion.div>
+          )}
+          {online && status && status.failed > 0 && !failedHidden && (
+            <motion.div
+              key="failed"
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 10, opacity: 0 }}
+              className="pointer-events-auto flex items-center gap-2 rounded-full border border-amber-300/25 bg-navy-800/95 py-1 pl-3 pr-1 text-[11px] text-amber-100 backdrop-blur"
+              role="status"
+            >
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              {status.failed} {status.failed === 1 ? "cambio sin subir" : "cambios sin subir"}
+              <button onClick={() => void engine?.clearFailed()} className="rounded-full px-2 py-1 font-semibold text-white hover:bg-white/10">
+                Descartar
+              </button>
+              <button onClick={() => setFailedHidden(true)} className="rounded-full p-1 text-white/50 hover:bg-white/10" aria-label="Cerrar aviso">
+                <X className="h-3 w-3" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

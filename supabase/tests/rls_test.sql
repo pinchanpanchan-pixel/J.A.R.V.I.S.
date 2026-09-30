@@ -112,3 +112,19 @@ do $$ begin
   assert not public.consume_discount_code('00000000-0000-0000-0000-00000000000b', 'NOPE'), 'invalid';
 end $$;
 \echo 'PAYMENT DB TESTS PASSED'
+
+-- v2: el perfil NO se puede sincronizar con upsert sin email (23502); con update por id sí.
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+do $$ begin
+  begin
+    insert into public.users (id, floating_mode_enabled) values ('00000000-0000-0000-0000-00000000000b', true)
+      on conflict (id) do update set floating_mode_enabled = excluded.floating_mode_enabled;
+    raise exception 'should have failed';
+  exception when not_null_violation then null;
+  end;
+  update public.users set floating_mode_enabled = true, updated_at = now() + interval '1 minute' where id = '00000000-0000-0000-0000-00000000000b';
+  assert (select floating_mode_enabled from public.users where id = '00000000-0000-0000-0000-00000000000b'), 'update by id works';
+end $$;
+reset role;
+\echo 'V2 USERS SYNC DB TEST PASSED'

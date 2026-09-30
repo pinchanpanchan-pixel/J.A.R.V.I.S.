@@ -2,7 +2,8 @@ import { z } from "zod";
 import { getRequestUser } from "@/lib/auth/requestUser";
 import { getServerFeatures } from "@/lib/auth/serverPlan";
 import { rateLimit } from "@/lib/rateLimit";
-import { ELEVEN_MODEL, elevenKey, voiceIdFor } from "@/lib/voiceServer";
+import { synthesize, ttsEngines } from "@/lib/tts/server";
+import { VOICE_SAMPLE_TEXT } from "@/lib/voices";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,42 +16,37 @@ const Query = z.object({
 const json = (body: unknown, status: number) => Response.json(body, { status });
 
 /**
- * TTS en STREAMING con ElevenLabs (GET para que <audio src> empiece a sonar con los
- * primeros bytes: latencia < 400 ms con eleven_flash_v2_5). Sin clave => 503 y el
- * cliente usa Web Speech.
+ * Voz de J.A.R.V.I.S. (GET para que <audio src> la reproduzca directamente): Google Cloud TTS
+ * y, si no, Gemini TTS. Sin motor disponible => 503 y el cliente usa la voz del navegador.
+ * La frase de muestra de las voces la puede escuchar cualquiera (onboarding); el resto requiere
+ * un plan con voz premium.
  */
 export async function GET(req: Request) {
-  const key = elevenKey();
-  if (!key) return json({ error: "tts_unavailable", fallback: true }, 503);
+  if (ttsEngines().length === 0) return json({ error: "tts_unavailable", fallback: true }, 503);
   const user = await getRequestUser(req);
   if (!user) return json({ error: "unauthorized" }, 401);
-  const { features } = await getServerFeatures(user.id);
-  if (!features.premiumVoice) return json({ error: "plan_required", fallback: true }, 402);
-  if (!rateLimit(`tts:${user.id}`, 60)) return json({ error: "rate_limited" }, 429);
 
   const url = new URL(req.url);
   const parsed = Query.safeParse({ text: url.searchParams.get("text"), voice: url.searchParams.get("voice") ?? undefined });
   if (!parsed.success) return json({ error: "invalid_query" }, 400);
-
-  const upstream = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceIdFor(parsed.data.voice)}/stream?output_format=mp3_44100_64`,
-    {
-      method: "POST",
-      headers: { "xi-api-key": key, "content-type": "application/json", accept: "audio/mpeg" },
-      body: JSON.stringify({
-        text: parsed.data.text,
-        model_id: ELEVEN_MODEL,
-        voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.15, use_speaker_boost: true },
-      }),
-      signal: req.signal,
-    },
-  ).catch(() => null);
-
-  if (!upstream || !upstream.ok || !upstream.body) {
-    return json({ error: "tts_failed", status: upstream?.status ?? 0, fallback: true }, 502);
+  const sample = parsed.data.text === VOICE_SAMPLE_TEXT;
+  if (!sample) {
+    const { features } = await getServerFeatures(user.id);
+    if (!features.premiumVoice) return json({ error: "plan_required", fallback: true }, 402);
   }
-  // Se reenvía el stream tal cual: el navegador empieza a reproducir al recibir el primer trozo.
-  return new Response(upstream.body, {
-    headers: { "content-type": "audio/mpeg", "cache-control": "no-store", "x-accel-buffering": "no" },
-  });
+  if (!rateLimit(`tts:${user.id}`, 90)) return json({ error: "rate_limited" }, 429);
+
+  try {
+    const audio = await synthesize(parsed.data.text, parsed.data.voice, req.signal);
+    return new Response(audio.bytes as BodyInit, {
+      headers: {
+        "content-type": audio.contentType,
+        // Mismo texto y voz = mismo audio: el navegador lo reutiliza (muestras, frases repetidas).
+        "cache-control": "private, max-age=86400",
+        "x-tts-engine": audio.engine,
+      },
+    });
+  } catch {
+    return json({ error: "tts_failed", fallback: true }, 502);
+  }
 }

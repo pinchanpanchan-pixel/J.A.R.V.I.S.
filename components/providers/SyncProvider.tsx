@@ -120,7 +120,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [engine, user]);
+    // Solo depende del id: renovar la sesión no debe volver a la pantalla de carga.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine, user?.id]);
 
   // Activa la sincronización total según el plan, y guarda config para el Service Worker.
   useEffect(() => {

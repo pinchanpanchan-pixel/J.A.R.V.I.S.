@@ -6,6 +6,7 @@ import { mockReply } from "@/lib/brain/mockBrain";
 import { systemPrompt } from "@/lib/brain/persona";
 import { loadUserKeys } from "@/lib/ai/userKeys";
 import { rateLimit } from "@/lib/rateLimit";
+import { isMockMode } from "@/lib/env";
 import { chat, NoProviderError, type AIError } from "@/services/aiRouter";
 import type { ProviderAttempt } from "@/lib/ai/types";
 
@@ -30,7 +31,7 @@ const Body = z.object({
   keys: z.unknown().optional(),
 });
 
-/** Cerebro: aiRouter (claves del usuario → Claude del propietario → fallback). Sin claves: simulado. */
+/** Cerebro: aiRouter (claves propias del propietario → Gemini del servidor → Claude). Sin claves: simulado. */
 export async function POST(req: Request) {
   const user = await getRequestUser(req);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -39,9 +40,10 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   const { message, history, context, keys } = parsed.data;
 
-  const { features } = await getServerFeatures(user.id);
-  // Multi-proveedor es de Pro: en otros planes solo se usa el cerebro por defecto.
-  const userKeys = features.multiProvider ? await loadUserKeys(user.id, keys) : [];
+  const { isOwner } = await getServerFeatures(user.id);
+  // Las claves propias («Proveedores de IA») son solo de cuentas propietarias: el resto usa
+  // el cerebro del servidor y nunca introduce claves.
+  const userKeys = isOwner || isMockMode ? await loadUserKeys(user.id, keys) : [];
 
   const system = systemPrompt({
     assistantName: context.assistantName,
@@ -65,8 +67,12 @@ export async function POST(req: Request) {
     }
     const err = e as AIError & { attempts?: ProviderAttempt[] };
     // Todos los proveedores fallaron: respuesta amable + intentos (el cliente anota los fallos de cada clave)
+    const quota = err.status === 429;
     return NextResponse.json({
-      reply: "Tengo los circuitos saturados ahora mismo, hermano. Dame un minuto y vuelve a probar.",
+      reply: quota
+        ? "Hoy he hablado tanto que he agotado mi cupo gratuito, hermano. Dame un rato (o hasta mañana) y seguimos."
+        : "Tengo los circuitos saturados ahora mismo, hermano. Dame un minuto y vuelve a probar.",
+      quota,
       provider: "none",
       keyId: null,
       degraded: true,

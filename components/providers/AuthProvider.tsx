@@ -34,6 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return onMockAuthChange(sync);
     }
     const sb = getSupabaseBrowser()!;
+    // Renovar el token NO es un usuario nuevo: se conserva el mismo objeto para no reiniciar la app.
+    const keep = (next: AuthUser | null) =>
+      setUser((prev) => (prev && next && prev.id === next.id && prev.email === next.email ? prev : next));
     const toUser = (u: { id: string; email?: string | null; app_metadata?: { provider?: string } } | null | undefined) =>
       u
         ? {
@@ -43,11 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         : null;
     sb.auth.getSession().then(({ data }) => {
-      setUser(toUser(data.session?.user));
+      keep(toUser(data.session?.user));
       setLoading(false);
     });
     const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
-      setUser(toUser(session?.user));
+      keep(toUser(session?.user));
       setLoading(false);
     });
     return () => sub.subscription.unsubscribe();

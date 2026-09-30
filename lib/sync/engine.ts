@@ -112,6 +112,7 @@ export class SyncEngine {
     this.stop();
     this.userId = userId;
     this.cacheMemo.clear();
+    await this.repairFailed();
     await this.refreshCounts();
     this.status.lastSyncedAt = await this.meta.get<string>(`lastSync:${userId}`);
     this.emitStatus();
@@ -376,6 +377,36 @@ export class SyncEngine {
       this.status.lastError = msg;
       return true;
     }
+  }
+
+  /**
+   * Repara la cola de rechazados al arrancar: los cambios del perfil rechazados por el
+   * antiguo upsert (23502) se descartan y se reenvía UNA vez el perfil local actual.
+   * Los rechazos por columnas obligatorias vacías (23502) no tienen arreglo: se descartan.
+   */
+  private async repairFailed(): Promise<void> {
+    const userId = this.userId;
+    if (!userId) return;
+    let resendProfile = false;
+    for (const op of await this.outbox.deadOps(userId)) {
+      const notNull = /23502|not-null|null value/i.test(op.lastError ?? "");
+      if (op.table === "users" || notNull) {
+        await this.outbox.removeDead(op.key);
+        if (op.table === "users") resendProfile = true;
+      }
+    }
+    if (resendProfile) {
+      const profile = await this.cache("users").get<AnyRow>(`${userId}:${userId}`);
+      if (profile) await this.outbox.enqueue({ table: "users", rowId: userId, userId, row: profile });
+    }
+  }
+
+  /** «Descartar»: olvida los cambios rechazados (ya están aplicados en este dispositivo). */
+  async clearFailed(): Promise<void> {
+    if (!this.userId) return;
+    for (const op of await this.outbox.deadOps(this.userId)) await this.outbox.removeDead(op.key);
+    await this.refreshCounts();
+    this.emitStatus();
   }
 
   // -------------------------------------------------------------------

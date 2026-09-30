@@ -66,7 +66,7 @@ export default function SettingsPage() {
         </div>
       </Section>
 
-      <Section title="Voz" description={features.premiumVoice ? "Voces premium con ElevenLabs." : "Plan Free: voz del sistema. Las 4 voces premium llegan con Pro."}>
+      <Section title="Voz" description={features.premiumVoice ? "Voces neuronales de Google." : "Plan Free: voz del sistema. Las 4 voces neuronales llegan con Pro."}>
         <VoiceSelector value={(voice?.voice_key ?? "british_original") as VoiceKey} onChange={(k) => void updateVoice({ voice_key: k })} maxVoices={features.voices}
           premium={features.premiumVoice} />
       </Section>

@@ -4,23 +4,24 @@ import { open as unseal } from "@/lib/crypto";
 import { secret } from "@/lib/serverEnv";
 import type { AIProvider } from "@/types/db";
 import type { ChatTurn, ProviderAttempt } from "@/lib/ai/types";
+import { GeminiError, geminiGenerate, serverGeminiKey } from "@/lib/ai/gemini";
 
 /**
  * aiRouter — elige el cerebro de cada petición.
- *  1. Primero las claves del USUARIO (ahorran coste al propietario), en round-robin.
- *  2. Después Claude con la clave del propietario (ANTHROPIC_API_KEY): el cerebro por defecto.
+ *  1. Primero las claves propias (solo cuentas propietarias pueden añadirlas), en round-robin.
+ *  2. Después el cerebro del servidor: Gemini (GEMINI_API_KEY, capa gratuita) por defecto.
+ *     Con AI_PRIMARY=anthropic y ANTHROPIC_API_KEY, Claude va primero (cambio futuro a pago).
  *  3. Si un proveedor falla con 429/5xx/red (o clave inválida), pasa al siguiente.
  * Nunca se registran (log) claves ni textos cifrados.
  */
 export const CLAUDE_MODEL = "claude-opus-5-5";
 
-const DEFAULT_MODELS: Record<Exclude<AIProvider, "anthropic">, { env: string; model: string }> = {
+const DEFAULT_MODELS: Record<Exclude<AIProvider, "anthropic" | "gemini">, { env: string; model: string }> = {
   openai: { env: "OPENAI_CHAT_MODEL", model: "gpt-4o-mini" },
-  gemini: { env: "GEMINI_CHAT_MODEL", model: "gemini-2.0-flash" },
   groq: { env: "GROQ_CHAT_MODEL", model: "llama-3.3-70b-versatile" },
   openrouter: { env: "OPENROUTER_CHAT_MODEL", model: "openrouter/auto" },
 };
-const modelFor = (p: Exclude<AIProvider, "anthropic">) => process.env[DEFAULT_MODELS[p].env]?.trim() || DEFAULT_MODELS[p].model;
+const modelFor = (p: Exclude<AIProvider, "anthropic" | "gemini">) => process.env[DEFAULT_MODELS[p].env]?.trim() || DEFAULT_MODELS[p].model;
 
 export class AIError extends Error {
   constructor(
@@ -70,8 +71,24 @@ export function ownerAnthropicKey(): string | null {
   return secret("ANTHROPIC_API_KEY");
 }
 
-/** Orden de candidatos: claves del usuario rotadas + la del propietario al final. */
-export function buildCandidates(userId: string, keys: StoredKey[], owner: string | null): Candidate[] {
+export interface ServerKey {
+  provider: AIProvider;
+  apiKey: string;
+}
+
+/** Claves del servidor en orden de preferencia (no las ve nunca el cliente). */
+export function serverKeys(): ServerKey[] {
+  const gemini = serverGeminiKey();
+  const claude = ownerAnthropicKey();
+  const list: ServerKey[] = [];
+  if (gemini) list.push({ provider: "gemini", apiKey: gemini });
+  if (claude) list.push({ provider: "anthropic", apiKey: claude });
+  if (process.env.AI_PRIMARY?.trim() === "anthropic") list.reverse();
+  return list;
+}
+
+/** Orden de candidatos: claves del usuario rotadas + las del servidor al final. */
+export function buildCandidates(userId: string, keys: StoredKey[], server: ServerKey[]): Candidate[] {
   const usable: Candidate[] = [];
   for (const k of keys) {
     if (!k.enabled) continue;
@@ -84,7 +101,7 @@ export function buildCandidates(userId: string, keys: StoredKey[], owner: string
   const start = usable.length ? (rr.get(userId) ?? 0) % usable.length : 0;
   rr.set(userId, start + 1);
   const rotated = [...usable.slice(start), ...usable.slice(0, start)];
-  if (owner) rotated.push({ provider: "anthropic", keyId: "owner", apiKey: owner });
+  for (const k of server) rotated.push({ provider: k.provider, keyId: "owner", apiKey: k.apiKey });
   return rotated;
 }
 
@@ -122,7 +139,7 @@ async function callAnthropic(c: Candidate, req: ChatRequest): Promise<{ text: st
 }
 
 async function callOpenAICompatible(c: Candidate, req: ChatRequest, baseUrl: string): Promise<{ text: string; model: string }> {
-  const model = modelFor(c.provider as Exclude<AIProvider, "anthropic">);
+  const model = modelFor(c.provider as Exclude<AIProvider, "anthropic" | "gemini">);
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -144,21 +161,19 @@ async function callOpenAICompatible(c: Candidate, req: ChatRequest, baseUrl: str
 }
 
 async function callGemini(c: Candidate, req: ChatRequest): Promise<{ text: string; model: string }> {
-  const model = modelFor("gemini");
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": c.apiKey },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: req.system }] },
+  try {
+    const r = await geminiGenerate({
+      apiKey: c.apiKey,
+      system: req.system,
       contents: req.messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
-      generationConfig: { maxOutputTokens: req.maxTokens ?? 2000 },
-    }),
-    signal: AbortSignal.timeout(45_000),
-  }).catch(() => null);
-  if (!res) throw new AIError("network", 0, true);
-  if (!res.ok) throw new AIError(`gemini ${res.status}`, res.status, classify(res.status));
-  const j = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-  return { text: (j.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim(), model };
+      maxTokens: req.maxTokens ?? 1024,
+    });
+    if (r.blocked && !r.text) return { text: "Eso no te lo puedo responder, hermano. Pregúntame otra cosa.", model: r.model };
+    return r;
+  } catch (e) {
+    const status = e instanceof GeminiError ? e.status : 0;
+    throw new AIError(e instanceof Error ? `gemini: ${e.message}` : "gemini", status, classify(status));
+  }
 }
 
 async function callProvider(c: Candidate, req: ChatRequest) {
@@ -177,8 +192,8 @@ async function callProvider(c: Candidate, req: ChatRequest) {
 }
 
 /** Conversación con fallback entre proveedores. Lanza NoProviderError si no hay ninguno configurado. */
-export async function chat(req: ChatRequest, deps: { call?: typeof callProvider } = {}): Promise<ChatResult> {
-  const candidates = buildCandidates(req.userId, req.userKeys, ownerAnthropicKey());
+export async function chat(req: ChatRequest, deps: { call?: typeof callProvider; server?: ServerKey[] } = {}): Promise<ChatResult> {
+  const candidates = buildCandidates(req.userId, req.userKeys, deps.server ?? serverKeys());
   if (candidates.length === 0) throw new NoProviderError("no_provider");
   const call = deps.call ?? callProvider;
   const attempts: ProviderAttempt[] = [];
@@ -196,14 +211,16 @@ export async function chat(req: ChatRequest, deps: { call?: typeof callProvider 
       if (!err.retryable) break; // 400: la petición es mala, no insistir con otros
     }
   }
-  const e = new AIError(lastError?.message ?? "all_failed", lastError?.status ?? 502, false) as AIError & { attempts: ProviderAttempt[] };
+  // Si todos los intentos acabaron en 429 es falta de cuota (capa gratuita): se avisa distinto.
+  const allQuota = attempts.length > 0 && attempts.every((a) => a.status === 429);
+  const e = new AIError(lastError?.message ?? "all_failed", allQuota ? 429 : (lastError?.status ?? 502), false) as AIError & { attempts: ProviderAttempt[] };
   e.attempts = attempts;
   throw e;
 }
 
 /** Cliente de Claude para visión y análisis estructurado (clave del propietario o del usuario). */
 export function claudeClientFor(userId: string, keys: StoredKey[]): Anthropic | null {
-  const userClaude = buildCandidates(userId, keys.filter((k) => k.provider === "anthropic"), null)[0];
+  const userClaude = buildCandidates(userId, keys.filter((k) => k.provider === "anthropic"), [])[0];
   const key = userClaude?.apiKey ?? ownerAnthropicKey();
   return key ? new Anthropic({ apiKey: key, maxRetries: 1, timeout: 60_000 }) : null;
 }

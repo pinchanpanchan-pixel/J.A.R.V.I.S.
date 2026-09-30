@@ -12,7 +12,7 @@ export interface PlanFeatures {
   sync: boolean;
   maxMemoryBlocks: number | null; // null = ilimitado
   voices: number; // nº de voces disponibles
-  premiumVoice: boolean; // ElevenLabs (si no, Web Speech)
+  premiumVoice: boolean; // voz neuronal (Google/Gemini TTS); si no, Web Speech
   maxSkills: number | null;
   connectors: boolean;
   maxConnectors: number | null;

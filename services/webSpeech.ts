@@ -2,7 +2,7 @@
 import { voiceByKey } from "@/lib/voices";
 import type { VoiceKey } from "@/types/db";
 
-/** Respaldo de voz con la Web Speech API (sin clave de ElevenLabs o plan Free). */
+/** Respaldo de voz con la Web Speech API (sin voz neuronal disponible o plan Free). */
 export function webSpeechAvailable(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;
 }

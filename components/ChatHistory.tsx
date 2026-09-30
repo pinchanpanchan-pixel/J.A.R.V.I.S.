@@ -4,7 +4,11 @@ import type { ChatMessageRow } from "@/types/db";
 
 export function ChatHistory({ messages, assistantName }: { messages: ChatMessageRow[]; assistantName: string }) {
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView({ behavior: "smooth" }), [messages.length]);
+  useEffect(() => {
+    // Bloque con llaves: en Chrome reciente scrollIntoView devuelve una promesa y, si se
+    // devolviera desde el efecto, React la llamaría como limpieza ("n is not a function").
+    end.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
   if (messages.length === 0) return <p className="py-10 text-center text-sm text-white/40">Aún no hemos hablado. Dime algo, hermano.</p>;
   return (
     <div className="flex flex-col gap-2.5">

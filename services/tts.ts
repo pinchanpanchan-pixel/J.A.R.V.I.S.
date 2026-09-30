@@ -9,10 +9,10 @@ import { webSpeak, webSpeechAvailable, type WebSpeakHandle } from "./webSpeech";
 
 /**
  * TTS de J.A.R.V.I.S.
- *  - ElevenLabs en streaming (/api/tts, eleven_flash_v2_5): el <audio> empieza a sonar con
- *    los primeros bytes. La respuesta se trocea en frases: la primera va sola (arranque
- *    < 400 ms) y la siguiente se precarga mientras suena la actual.
- *  - Respaldo: Web Speech API (sin clave de ElevenLabs o plan Free).
+ *  - Voz neuronal del servidor (/api/tts: Google Cloud TTS o Gemini TTS). La respuesta se
+ *    trocea en frases: la primera va sola (arranque rápido) y la siguiente se precarga
+ *    mientras suena la actual.
+ *  - Respaldo: voz del navegador (Web Speech API), avisando con onTtsNotice.
  *  - Se puede interrumpir en cualquier momento (stop).
  */
 export interface SpeakOptions {
@@ -23,7 +23,12 @@ export interface SpeakOptions {
   onStart?: () => void;
 }
 
-let config: Promise<{ tts: boolean; stt: boolean }> | null = null;
+export interface VoiceConfig {
+  tts: boolean;
+  engine?: "google" | "gemini" | null;
+  stt: boolean;
+}
+let config: Promise<VoiceConfig> | null = null;
 export function voiceConfig() {
   if (!config) {
     config = fetch("/api/voice/config")
@@ -31,6 +36,21 @@ export function voiceConfig() {
       .catch(() => ({ tts: false, stt: false }));
   }
   return config;
+}
+
+/** Aviso cuando suena la voz del navegador en lugar de la neuronal (null = todo bien). */
+export type TtsNotice = null | "unavailable" | "failed" | "plan";
+let notice: TtsNotice = null;
+const noticeListeners = new Set<(n: TtsNotice) => void>();
+function setNotice(n: TtsNotice) {
+  if (n === notice) return;
+  notice = n;
+  noticeListeners.forEach((l) => l(n));
+}
+export function onTtsNotice(l: (n: TtsNotice) => void): () => void {
+  noticeListeners.add(l);
+  l(notice);
+  return () => void noticeListeners.delete(l);
 }
 
 // Dos <audio> que se alternan (uno suena, el otro precarga). Cada uno con su analizador.
@@ -115,17 +135,28 @@ export function stopSpeaking() {
   current = null;
 }
 
+const START_TIMEOUT_MS = 22_000;
+
 function playEl(p: Player, url: string, mySession: number): Promise<boolean> {
   return new Promise((resolve) => {
     if (mySession !== session) return resolve(true);
     const el = p.el;
     const done = (ok: boolean) => {
+      clearTimeout(slow);
+      el.onplaying = null;
       el.onended = null;
       el.onerror = null;
       pendingPlays.delete(done);
       resolve(ok);
     };
     pendingPlays.add(done);
+    // Si la voz neuronal no empieza a sonar a tiempo, se pasa a la del navegador.
+    const slow = setTimeout(() => {
+      el.pause();
+      el.removeAttribute("src"); // que no empiece a sonar tarde encima de la otra voz
+      done(false);
+    }, START_TIMEOUT_MS);
+    el.onplaying = () => clearTimeout(slow);
     el.onended = () => done(true);
     el.onerror = () => done(false);
     if (el.src !== new URL(url, location.href).href) el.src = url;
@@ -160,13 +191,16 @@ export async function speak(text: string, opts: SpeakOptions): Promise<void> {
           next.el.load();
         }
         ok = await playEl(p, ttsUrl(parts[i], opts.voice), mySession);
-        if (!ok) {
-          // ElevenLabs falló a mitad: el resto con Web Speech (nunca se queda callado)
+        if (!ok && mySession === session) {
+          // La voz neuronal falló: el resto con la del navegador (nunca se queda callado)
+          setNotice("failed");
           await speakWeb(parts.slice(i).join(" "), opts, mySession);
           break;
         }
       }
+      if (ok) setNotice(null);
     } else {
+      setNotice(cfg.tts ? "plan" : "unavailable");
       await speakWeb(text, opts, mySession);
     }
   } finally {
@@ -183,7 +217,7 @@ async function speakWeb(text: string, opts: SpeakOptions, mySession: number) {
   await web.done;
 }
 
-/** Vista previa en Ajustes/Onboarding: «Ey hermano, estoy aquí.» con cada voz. */
-export async function previewVoice(key: VoiceKey, premium = true): Promise<void> {
-  await speak(VOICE_SAMPLE_TEXT, { voice: key, premium });
+/** Vista previa en Ajustes/Onboarding: la misma frase con cada voz (la muestra es para todos los planes). */
+export async function previewVoice(key: VoiceKey): Promise<void> {
+  await speak(VOICE_SAMPLE_TEXT, { voice: key, premium: true });
 }

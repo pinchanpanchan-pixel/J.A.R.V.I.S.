@@ -6,6 +6,7 @@ import { getServerFeatures } from "@/lib/auth/serverPlan";
 import { loadUserKeys } from "@/lib/ai/userKeys";
 import { rateLimit } from "@/lib/rateLimit";
 import { CLAUDE_MODEL, claudeClientFor } from "@/services/aiRouter";
+import { geminiJson } from "@/lib/ai/gemini";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,7 +28,7 @@ const Body = z.object({
   keys: z.unknown().optional(),
 });
 
-/** Memoria visual con Claude Vision: descripción, OCR, objetos y caras. */
+/** Memoria visual con Gemini (o Claude): descripción, OCR, objetos y caras. */
 export async function POST(req: Request) {
   const user = await getRequestUser(req);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -38,11 +39,18 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   const { image, mediaType, context, keys } = parsed.data;
 
+  const prompt = `Analiza esta foto para guardarla en la memoria personal de su dueño. Responde en español.${context ? ` Contexto: ${context}.` : ""} No identifiques a personas por su nombre; solo cuéntalas.`;
+  const fromGemini = await geminiJson(VisionSchema, {
+    contents: [{ role: "user", parts: [{ inlineData: { mimeType: mediaType, data: image } }, { text: prompt }] }],
+    timeoutMs: 45_000,
+  });
+  if (fromGemini) return NextResponse.json({ result: fromGemini, source: "gemini" });
+
   const client = claudeClientFor(user.id, await loadUserKeys(user.id, keys));
   if (!client) {
     const result: VisionResult = {
       title: "Foto guardada",
-      description: "Foto guardada en tu memoria. La descripción automática se activa con la clave de Claude.",
+      description: "Foto guardada en tu memoria. La descripción automática no está disponible ahora mismo.",
       ocr_text: "",
       objects: [],
       faces_count: 0,
@@ -60,10 +68,7 @@ export async function POST(req: Request) {
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: mediaType, data: image } },
-            {
-              type: "text",
-              text: `Analiza esta foto para guardarla en la memoria personal de su dueño. Responde en español.${context ? ` Contexto: ${context}.` : ""} No identifiques a personas por su nombre; solo cuéntalas.`,
-            },
+            { type: "text", text: prompt },
           ],
         },
       ],

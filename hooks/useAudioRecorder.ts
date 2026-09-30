@@ -29,7 +29,7 @@ export function useAudioRecorder() {
     setLevel(0);
   }, []);
 
-  useEffect(() => cleanup, [cleanup]);
+  useEffect(() => () => cleanup(), [cleanup]);
 
   const start = useCallback(async () => {
     setError(null);

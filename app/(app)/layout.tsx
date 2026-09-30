@@ -8,6 +8,7 @@ import { FloatingDot } from "@/components/FloatingDot";
 import { DiaryPrompt } from "@/components/DiaryPrompt";
 import { useProfile } from "@/hooks/useProfile";
 import { VoiceProvider } from "@/components/providers/VoiceProvider";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AutomationRunner } from "@/components/providers/AutomationRunner";
 import { WorldMonitorProvider } from "@/components/providers/WorldMonitorProvider";
 
@@ -19,7 +20,7 @@ function Shell({ children }: { children: ReactNode }) {
       {/* La app queda visible (desenfocada) detrás de la tarjeta de onboarding */}
       <div aria-hidden={onboarding} className={onboarding ? "pointer-events-none select-none" : undefined}>
         <main className="mx-auto min-h-[100dvh] max-w-xl px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] pt-[max(env(safe-area-inset-top),16px)]">
-          {children}
+          <ErrorBoundary label="pantalla">{children}</ErrorBoundary>
         </main>
         <Suspense>
           <QuickNoteFab />

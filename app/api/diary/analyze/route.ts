@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rateLimit";
 import { seal } from "@/lib/crypto";
 import { DiaryAnalysisSchema, heuristicAnalysis, type DiaryAnalysis } from "@/lib/diary/analysis";
 import { CLAUDE_MODEL, claudeClientFor } from "@/services/aiRouter";
+import { geminiJson } from "@/lib/ai/gemini";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,7 +16,7 @@ const Body = z.object({ text: z.string().min(1).max(20000), userName: z.string()
 
 /**
  * Analiza una entrada del diario (sentimiento, emociones, momentos clave, pensamientos,
- * etiquetas, resumen) con Claude y devuelve el texto CIFRADO. El texto plano no se guarda.
+ * etiquetas, resumen) con Gemini (o Claude si no hay Gemini) y devuelve el texto CIFRADO. El texto plano no se guarda.
  */
 export async function POST(req: Request) {
   const user = await getRequestUser(req);
@@ -25,16 +26,20 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   const { text, userName, keys } = parsed.data;
 
-  let analysis: DiaryAnalysis | null = null;
-  let source = "heuristic";
-  const client = claudeClientFor(user.id, await loadUserKeys(user.id, keys));
+  const system = `Eres el hermano mayor de ${userName} y lees su diario privado con cariño. Analiza la entrada con precisión y sin juzgar. Todo en español.`;
+  let analysis: DiaryAnalysis | null = await geminiJson(DiaryAnalysisSchema, {
+    system,
+    contents: [{ role: "user", parts: [{ text: `Entrada del diario de hoy:\n\n${text}` }] }],
+  });
+  let source = analysis ? "gemini" : "heuristic";
+  const client = analysis ? null : claudeClientFor(user.id, await loadUserKeys(user.id, keys));
   if (client) {
     try {
       const response = await client.messages.parse({
         model: CLAUDE_MODEL,
         max_tokens: 4000,
         output_config: { effort: "low", format: zodOutputFormat(DiaryAnalysisSchema) },
-        system: `Eres el hermano mayor de ${userName} y lees su diario privado con cariño. Analiza la entrada con precisión y sin juzgar. Todo en español.`,
+        system,
         messages: [{ role: "user", content: `Entrada del diario de hoy:\n\n${text}` }],
       });
       if (response.stop_reason !== "refusal" && response.parsed_output) {
