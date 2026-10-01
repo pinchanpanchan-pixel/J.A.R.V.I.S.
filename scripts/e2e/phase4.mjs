@@ -78,7 +78,7 @@ log("navegación por voz/texto: «abre mis notas»");
 
 // Proveedores de IA: añadir clave (se cifra), fallback registrado
 await a.click("a:has-text('Ajustes')");
-await a.click("text=Añadir proveedor");
+await a.click("text=Añadir una clave propia");
 await a.selectOption('select[aria-label="Proveedor"]', "groq");
 await a.fill('input[placeholder^="API key"]', "gsk_test_key_1234567890abcd");
 await a.click('[role="dialog"] button:has-text("Guardar")');

@@ -10,9 +10,13 @@ interface AuthContextValue {
   loading: boolean;
   mock: boolean;
   signInWithGoogle: () => Promise<void>;
-  signInWithApple: () => Promise<void>;
-  /** Envía magic link (real) o entra directamente (simulado). */
-  signInWithEmail: (email: string) => Promise<{ sent: boolean }>;
+  /**
+   * Manda un código de 6 dígitos al email (el correo trae también un enlace, por si acaso).
+   * En modo simulado no hay correo: devuelve el código para enseñarlo en pantalla.
+   */
+  sendEmailCode: (email: string) => Promise<{ mockCode?: string }>;
+  /** Comprueba el código y abre la sesión. */
+  verifyEmailCode: (email: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
   /** Token de acceso actual (para APIs y Background Sync). */
   getAccessToken: () => Promise<string | null>;
@@ -58,39 +62,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const redirectTo = `${typeof window !== "undefined" ? window.location.origin : publicEnv.appUrl}/auth/callback`;
 
-  const oauth = useCallback(
-    async (provider: "google" | "apple") => {
-      if (isMockMode) {
-        const email = window.prompt(
-          `Modo simulado: ¿con qué email entras con ${provider === "google" ? "Google" : "Apple"}?`,
-          "pinchan.panchan@gmail.com",
-        );
-        if (email) mockSignIn(email, provider);
-        return;
-      }
-      await getSupabaseBrowser()!.auth.signInWithOAuth({ provider, options: { redirectTo } });
-    },
-    [redirectTo],
-  );
+  const google = useCallback(async () => {
+    if (isMockMode) {
+      const email = window.prompt("Modo simulado: ¿con qué email entras con Google?", "pinchan.panchan@gmail.com");
+      if (email) mockSignIn(email, "google");
+      return;
+    }
+    const { error } = await getSupabaseBrowser()!.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo, queryParams: { prompt: "select_account" } },
+    });
+    if (error) throw error;
+  }, [redirectTo]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       loading,
       mock: isMockMode,
-      signInWithGoogle: () => oauth("google"),
-      signInWithApple: () => oauth("apple"),
-      signInWithEmail: async (email: string) => {
+      signInWithGoogle: google,
+      sendEmailCode: async (email: string) => {
+        const clean = email.trim().toLowerCase();
         if (isMockMode) {
-          mockSignIn(email, "email");
-          return { sent: false };
+          const code = String(Math.floor(100000 + Math.random() * 900000));
+          sessionStorage.setItem(`jarvis.mockCode.${clean}`, code);
+          return { mockCode: code };
         }
         const { error } = await getSupabaseBrowser()!.auth.signInWithOtp({
-          email,
-          options: { emailRedirectTo: redirectTo },
+          email: clean,
+          options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
         });
         if (error) throw error;
-        return { sent: true };
+        return {};
+      },
+      verifyEmailCode: async (email: string, code: string) => {
+        const clean = email.trim().toLowerCase();
+        if (isMockMode) {
+          if (sessionStorage.getItem(`jarvis.mockCode.${clean}`) !== code) throw new Error("invalid_code");
+          sessionStorage.removeItem(`jarvis.mockCode.${clean}`);
+          mockSignIn(clean, "email");
+          return;
+        }
+        const { error } = await getSupabaseBrowser()!.auth.verifyOtp({ email: clean, token: code, type: "email" });
+        if (error) throw error;
       },
       signOut: async () => {
         if (isMockMode) mockSignOut();
@@ -102,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return data.session?.access_token ?? null;
       },
     }),
-    [user, loading, oauth, redirectTo],
+    [user, loading, google, redirectTo],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { LogOut, MapPin } from "lucide-react";
+import { BookOpen, ChevronRight, LogOut, MapPin, MessageSquareQuote } from "lucide-react";
+import { MiniTutorial, ShortcutsTutorial } from "@/components/onboarding/Tutorials";
 import { Section, Row } from "@/components/settings/Section";
 import { PlanBadge } from "@/components/settings/PlanBadge";
 import { Toggle } from "@/components/ui/Toggle";
@@ -35,6 +36,7 @@ export default function SettingsPage() {
   const { signOut } = useAuth();
   const location = useRow("user_locations", user ? stableId(user.id, "primary-location") : null);
   const [locOpen, setLocOpen] = useState(false);
+  const [guide, setGuide] = useState<"how" | "shortcuts" | null>(null);
   const [pushState, setPushState] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
   const [aName, setAName] = useState("");
@@ -179,14 +181,15 @@ export default function SettingsPage() {
         <WhatsAppImport locked={!features.importPast} />
       </Section>
 
-      <Section id="avanzado" title="Avanzado · Proveedores de IA">
-        <AIProvidersManager locked={!features.multiProvider} />
-      </Section>
-
       {isOwner ? (
-        <Section id="codigos" title="Códigos de descuento" description="Solo tú ves esto. Crea, activa o borra códigos.">
-          <DiscountCodesAdmin />
-        </Section>
+        <>
+          <Section id="avanzado" title="Proveedores de IA" description="Solo cuentas propietarias.">
+            <AIProvidersManager />
+          </Section>
+          <Section id="codigos" title="Códigos de descuento" description="Solo cuentas propietarias. Crea, activa o borra códigos.">
+            <DiscountCodesAdmin />
+          </Section>
+        </>
       ) : (
         <Section id="suscripcion" title="Suscripción">
           {profile.subscription === "free" ? (
@@ -203,6 +206,24 @@ export default function SettingsPage() {
           )}
         </Section>
       )}
+
+      <Section id="ayuda" title="Ayuda">
+        <button onClick={() => setGuide("how")} className="flex w-full items-center gap-3 rounded-2xl px-1 py-2.5 text-left hover:bg-white/[0.04]">
+          <BookOpen className="h-5 w-5 text-arc" />
+          <span className="flex-1 text-[15px]">Cómo funciono</span>
+          <ChevronRight className="h-4 w-4 text-white/30" />
+        </button>
+        <button onClick={() => setGuide("shortcuts")} className="flex w-full items-center gap-3 rounded-2xl px-1 py-2.5 text-left hover:bg-white/[0.04]">
+          <MessageSquareQuote className="h-5 w-5 text-arc" />
+          <span className="flex-1 text-[15px]">Atajos de voz</span>
+          <ChevronRight className="h-4 w-4 text-white/30" />
+        </button>
+      </Section>
+
+      <Sheet open={guide !== null} onClose={() => setGuide(null)} title={guide === "shortcuts" ? "Atajos de voz" : "Cómo funciono"}>
+        {guide === "how" && <MiniTutorial onDone={() => setGuide(null)} />}
+        {guide === "shortcuts" && <ShortcutsTutorial onDone={() => setGuide(null)} />}
+      </Sheet>
 
       <button onClick={() => void signOut()} className="jv-btn-ghost text-red-300">
         <LogOut className="h-4 w-4" /> Cerrar sesión

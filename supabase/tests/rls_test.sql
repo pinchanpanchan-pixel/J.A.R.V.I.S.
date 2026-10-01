@@ -55,17 +55,52 @@ update public.users set floating_mode_enabled = true, diary_reminder_time = '21:
 do $$ begin
   assert (public.redeem_discount_code('NOPE') ->> 'error') = 'invalid_code', 'invalid code rejected';
   assert (public.redeem_discount_code('friends20') ->> 'percent_off')::int = 20, 'partial code validated';
-  assert (public.redeem_discount_code('PANCHAN100') ->> 'applied')::boolean, '100% code applied';
-  assert (public.redeem_discount_code('PANCHAN100') ->> 'error') = 'already_redeemed', 'no double redeem';
+  -- v2: PANCHAN100 es solo para propietarios; para A no existe
+  assert (public.redeem_discount_code('PANCHAN100') ->> 'error') = 'invalid_code', 'PANCHAN100 rejected for non-owner';
 end $$;
 
 do $$ begin
-  assert (select subscription from public.users) = 'pro_lifetime', 'A upgraded to lifetime';
-  assert (select is_owner from public.users), 'PANCHAN100 grants owner';
-  -- Como propietario ya puede ver los códigos
+  assert (select subscription from public.users) = 'free', 'A stays free';
+  assert not (select is_owner from public.users), 'A is not owner';
+  assert (select count(*) from public.discount_codes) = 0, 'non-owner cannot see codes';
+end $$;
+
+-- v2: un cliente no puede guardar claves de IA (Proveedores de IA es solo de propietarios)
+do $$ begin
+  begin
+    insert into public.ai_provider_keys (user_id, provider, key_ciphertext, key_last4)
+      values ('00000000-0000-0000-0000-00000000000a', 'openai', 'x', 'abcd');
+    raise exception 'should have failed';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+-- v2: admin_stats solo para propietarios
+do $$ begin
+  begin
+    perform public.admin_stats();
+    raise exception 'should have failed';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+-- v2: propietario (por email) — nace con Pro de por vida, canjea PANCHAN100, ve códigos y guarda claves
+reset role;
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000c', 'MateoLabandaYT@gmail.com ');
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);
+do $$ begin
+  assert (select is_owner from public.users), 'owner by email at signup';
+  assert (select subscription from public.users) = 'pro_lifetime', 'owner gets lifetime';
+  assert (public.redeem_discount_code('PANCHAN100') ->> 'applied')::boolean, 'owner can redeem PANCHAN100';
+  assert (public.redeem_discount_code('PANCHAN100') ->> 'error') = 'already_redeemed', 'no double redeem';
   assert (select count(*) from public.discount_codes) = 4, 'owner sees codes';
   assert (select used_count from public.discount_codes where code = 'PANCHAN100') = 1, 'used_count incremented';
+  assert (public.admin_stats() ->> 'users_total')::int = 3, 'owner reads admin stats';
 end $$;
+insert into public.ai_provider_keys (user_id, provider, key_ciphertext, key_last4)
+  values ('00000000-0000-0000-0000-00000000000c', 'openai', 'x', 'abcd');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
 
 -- Last-write-wins en servidor: una escritura antigua (dispositivo que estuvo offline) no pisa la nueva
 insert into public.quick_notes (id, user_id, content, updated_at)

@@ -6,16 +6,13 @@ import { computeOwnerProfile, ensureProfile } from "@/lib/auth/ensureProfile";
 
 export const dynamic = "force-dynamic";
 
-const MockBody = z.object({
-  email: z.string().email(),
-  redeemedCodes: z.array(z.string()).default([]),
-});
+const MockBody = z.object({ email: z.string().email() });
 
 export async function POST(req: Request) {
   if (isMockMode) {
     const parsed = MockBody.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
-    return NextResponse.json(computeOwnerProfile(parsed.data.email, parsed.data.redeemedCodes));
+    return NextResponse.json(computeOwnerProfile(parsed.data.email));
   }
 
   const sb = getSupabaseServer();

@@ -9,6 +9,9 @@ import type { DiscountCodeRow, Plan, Period, TableName } from "@/types/db";
 const T = (n: string) => n as TableName;
 const OWNER = "pinchan.panchan@gmail.com";
 
+/** Códigos solo para propietarios (como discount_codes.owners_only en la base de datos). */
+export const OWNERS_ONLY_CODES = new Set(["PANCHAN100"]);
+
 const SEED: Array<Pick<DiscountCodeRow, "code" | "percent_off" | "max_uses" | "duration" | "grants_plan" | "grants_period">> = [
   { code: "PANCHAN100", percent_off: 100, max_uses: null, duration: "lifetime", grants_plan: "pro_lifetime", grants_period: "lifetime" },
   { code: "BROTHER50", percent_off: 50, max_uses: 100, duration: "forever", grants_plan: null, grants_period: null },
@@ -82,10 +85,12 @@ export type RedeemResult = { ok: false; error: string } | { ok: true; code: stri
 export async function mockRedeem(cloud: MockRemote, userId: string, input: string): Promise<RedeemResult> {
   const r = checkCode(input, await mockCodes(cloud), await redeemedBy(cloud, userId));
   if (!r.ok) return r;
+  // El propietario lo decide el servidor (por email) al entrar; aquí solo se lee la marca.
+  if (OWNERS_ONLY_CODES.has(r.code.code) && !(await cloud.getRow("users", userId))?.is_owner) return { ok: false, error: "invalid_code" };
   if (r.code.percent_off < 100) return { ok: true, code: r.code.code, percent_off: r.code.percent_off, applied: false, duration: r.code.duration };
   const g = grantOf(r.code);
   await consume(cloud, userId, r.code);
-  await mockActivate(cloud, userId, g.plan, g.period, "code", 0, r.code, r.code.code === "PANCHAN100");
+  await mockActivate(cloud, userId, g.plan, g.period, "code", 0, r.code);
   return { ok: true, code: r.code.code, percent_off: 100, applied: true, plan: g.plan };
 }
 

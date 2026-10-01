@@ -57,6 +57,9 @@ export async function login(ctx, track, email) {
   await p.goto(`${BASE}/login`);
   await p.fill('input[type="email"]', email);
   await p.click('button[type="submit"]');
+  // v2: código de 6 dígitos (en modo simulado se muestra en pantalla)
+  const code = (await p.locator('[data-testid="mock-code"] b').innerText({ timeout: 10000 })).trim();
+  await p.fill('input[aria-label="Código de 6 dígitos"]', code);
   return p;
 }
 

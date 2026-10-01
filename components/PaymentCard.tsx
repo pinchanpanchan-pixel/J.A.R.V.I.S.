@@ -17,11 +17,11 @@ import type { DiscountCodeRow, Period } from "@/types/db";
 export const PRO_BENEFITS = [
   "Memoria infinita: lo sabe todo de ti",
   "Sincronización en todos tus dispositivos",
-  "Las 4 voces premium",
+  "Las 4 voces neuronales",
   "Todas tus apps y tu hogar inteligente",
   "Diario privado cifrado",
   "WorldMonitor: te avisa si pasa algo cerca",
-  "Modo flotante, atajos y multi-IA",
+  "Modo flotante y atajos de voz",
 ];
 
 type PaidPlan = "pro_lite" | "pro" | "founder";
@@ -236,6 +236,8 @@ export function PaymentCard({ onContinueFree, onPaid }: { onContinueFree?: () =>
   };
 
   const options = PRICES.filter((p) => p.period === period || p.plan === "founder");
+  // App real sin pasarelas configuradas todavía: se enseñan los planes, pero sin cobrar.
+  const comingSoon = !!cfg && cfg.mock && !mockCloud;
   const busy = status === "paying" || status === "activating";
 
   if (status === "done") {
@@ -306,8 +308,14 @@ export function PaymentCard({ onContinueFree, onPaid }: { onContinueFree?: () =>
         })}
       </div>
 
+      {comingSoon && (
+        <div className="rounded-2xl border border-arc/20 bg-arc/[0.06] px-4 py-3 text-center text-sm text-white/75" role="note">
+          Los pagos llegan muy pronto. De momento no se cobra nada: sigue con el plan Free o usa un código si tienes uno.
+        </div>
+      )}
+
       {/* Botones de pago apilados: Apple Pay → PayPal → tarjeta (+ Google Pay) */}
-      <div className="flex flex-col gap-2.5">
+      <div className={`flex flex-col gap-2.5 ${comingSoon ? "hidden" : ""}`}>
         {wallets.applePay && (
           <button type="button" onClick={() => pay("apple_pay")} disabled={busy} className="jv-btn h-[54px] bg-black text-[17px] text-white ring-1 ring-white/20 hover:bg-black/85" aria-label="Pagar con Apple Pay">
             <AppleLogo /> Pay
@@ -330,7 +338,7 @@ export function PaymentCard({ onContinueFree, onPaid }: { onContinueFree?: () =>
         )}
       </div>
 
-      <p className="text-center text-xs text-white/45">
+      <p className={`text-center text-xs text-white/45 ${comingSoon ? "hidden" : ""}`}>
         {q.recurringCents !== null && q.recurringCents !== q.firstChargeCents
           ? `Hoy ${formatUsd(q.firstChargeCents)}, después ${formatUsd(q.recurringCents)}/${q.period === "yearly" ? "año" : "mes"}.`
           : `Total: ${formatUsd(q.firstChargeCents)}${q.period === "lifetime" ? " una vez" : q.period === "yearly" ? "/año" : "/mes"}.`}{" "}
@@ -350,9 +358,11 @@ export function PaymentCard({ onContinueFree, onPaid }: { onContinueFree?: () =>
           Seguir con el plan Free
         </button>
       )}
-      <p className="flex items-center justify-center gap-1 text-[11px] text-white/30">
-        <Lock className="h-3 w-3" /> Pagos seguros con Stripe y PayPal
-      </p>
+      {!comingSoon && (
+        <p className="flex items-center justify-center gap-1 text-[11px] text-white/30">
+          <Lock className="h-3 w-3" /> Pagos seguros con Stripe y PayPal
+        </p>
+      )}
 
       <Sheet open={cardOpen} onClose={() => setCardOpen(false)} title={`Pagar ${formatUsd(q.firstChargeCents)}`}>
         <div ref={cardMount} className="jv-input min-h-[52px] py-4" />

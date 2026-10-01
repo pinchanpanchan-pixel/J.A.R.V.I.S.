@@ -101,7 +101,8 @@ UI ──escribe──> caché local (IndexedDB) ──> outbox "pending" ──
 - **PayPal**: pedido con importe calculado en el servidor; la captura se verifica (usuario e importe) antes de activar.
 - **Códigos** (`¿Tienes código?`): validación atómica en SQL; 100 % activa sin pasarela («Código aplicado, bienvenido hermano»);
   <100 % se aplica al cobro y se consume al pagar. Semilla: PANCHAN100, BROTHER50, FRIENDS20, LAUNCH30.
-- **Propietario**: `OWNER_EMAILS` o canjear `OWNER_DISCOUNT_CODE` (PANCHAN100) ⇒ `is_owner`, `pro_lifetime`, salta el pago
+- **Propietario**: solo por email (`lib/owner.ts` + `OWNER_EMAILS`, y tabla `app_owner_emails`) ⇒ `is_owner`, `pro_lifetime`, salta el pago. PANCHAN100 solo lo pueden canjear propietarios. Ver `docs/ADMIN.md`.
+- **Login**: código de 6 dígitos por email + Google. Configuración en `docs/AUTH_SETUP.md`.
   (paso 5 → 7), insignia dorada **OWNER - Lifetime**, sin pantalla de pago y panel **Códigos de descuento** (crear, activar, borrar).
 
 ## Puesta en producción (cuando tengas las claves)

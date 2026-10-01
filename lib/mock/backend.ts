@@ -76,13 +76,10 @@ export async function mockBootstrapUser(cloud: MockRemote, user: { id: string; e
   }
 
   // Estado de propietario calculado en el servidor (OWNER_EMAILS vive en .env).
-  const redeemed = (await cloud.listAll("discount_redemptions" as never))
-    .filter((r) => r.user_id === user.id)
-    .map((r) => String(r.code));
   const res = await fetch("/api/auth/ensure-profile", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: user.email, redeemedCodes: redeemed }),
+    body: JSON.stringify({ email: user.email }),
   });
   if (!res.ok) return;
   const profile = (await res.json()) as EnsureProfileResult;

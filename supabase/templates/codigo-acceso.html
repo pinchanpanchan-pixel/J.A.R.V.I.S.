@@ -1,0 +1,15 @@
+<!--
+  Plantilla del correo de acceso de J.A.R.V.I.S.
+  Pégala en Supabase → Authentication → Emails → Templates → «Magic Link»
+  (y la misma en «Confirm signup»). Asunto recomendado: «Tu código de J.A.R.V.I.S.: {{ .Token }}»
+-->
+<div style="background:#0A192F;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <div style="max-width:420px;margin:0 auto;background:#0F2440;border-radius:28px;padding:36px 28px;text-align:center;color:#ffffff;">
+    <div style="width:56px;height:56px;margin:0 auto 20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#9DF5E3,#64FFDA 40%,#0F2440 75%);box-shadow:0 0 32px rgba(100,255,218,.45);"></div>
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:600;">Ey, hermano.</h1>
+    <p style="margin:0 0 24px;color:rgba(255,255,255,.65);font-size:15px;line-height:1.5;">Tu código para entrar en J.A.R.V.I.S.:</p>
+    <div style="display:inline-block;padding:16px 24px;border-radius:18px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.35);font-size:34px;font-weight:700;letter-spacing:10px;color:#64FFDA;">{{ .Token }}</div>
+    <p style="margin:24px 0 0;color:rgba(255,255,255,.55);font-size:13px;line-height:1.5;">Escríbelo en la app. Caduca en 10 minutos.<br>¿Prefieres un toque? <a href="{{ .ConfirmationURL }}" style="color:#64FFDA;">Entra con este enlace</a>.</p>
+    <p style="margin:28px 0 0;color:rgba(255,255,255,.35);font-size:12px;">Si no has sido tú, ignora este correo. Nadie puede entrar sin el código.</p>
+  </div>
+</div>

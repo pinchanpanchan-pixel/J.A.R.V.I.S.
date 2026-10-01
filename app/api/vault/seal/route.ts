@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { last4, seal } from "@/lib/crypto";
 import { getRequestUser } from "@/lib/auth/requestUser";
+import { getServerFeatures } from "@/lib/auth/serverPlan";
+import { isMockMode } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,10 @@ export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   const { value, purpose } = parsed.data;
+  // Proveedores de IA: solo cuentas propietarias (además de ocultarlo en la interfaz).
+  if (purpose === "ai_key" && !isMockMode && !(await getServerFeatures(user.id)).isOwner) {
+    return NextResponse.json({ error: "owners_only" }, { status: 403 });
+  }
   return NextResponse.json({
     ciphertext: seal(value, purpose, user.id),
     last4: purpose === "diary" ? null : last4(value),

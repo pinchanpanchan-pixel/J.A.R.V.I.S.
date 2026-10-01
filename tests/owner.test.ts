@@ -3,15 +3,14 @@ import { isOwner, parseOwnerEmails } from "@/lib/owner";
 import { stableId } from "@/lib/ids";
 
 describe("owner", () => {
-  const ownerEmails = parseOwnerEmails(" pinchan.panchan@gmail.com , otro@x.com");
-  it("detecta email propietario sin importar mayúsculas", () => {
-    expect(isOwner({ email: "Pinchan.Panchan@gmail.com", ownerEmails, ownerCode: "PANCHAN100", redeemedCodes: [] })).toBe(true);
+  const ownerEmails = parseOwnerEmails(" otro@x.com ");
+  it("los dos propietarios están siempre (sin importar mayúsculas) y OWNER_EMAILS añade más", () => {
+    expect(isOwner({ email: "Pinchan.Panchan@gmail.com", ownerEmails })).toBe(true);
+    expect(isOwner({ email: "mateolabandayt@gmail.com ", ownerEmails })).toBe(true);
+    expect(isOwner({ email: "otro@x.com", ownerEmails })).toBe(true);
   });
-  it("detecta código PANCHAN100 canjeado", () => {
-    expect(isOwner({ email: "x@y.com", ownerEmails, ownerCode: "PANCHAN100", redeemedCodes: ["panchan100"] })).toBe(true);
-  });
-  it("usuario normal no es propietario", () => {
-    expect(isOwner({ email: "x@y.com", ownerEmails, ownerCode: "PANCHAN100", redeemedCodes: ["BROTHER50"] })).toBe(false);
+  it("canjear un código ya no convierte en propietario", () => {
+    expect(isOwner({ email: "x@y.com", ownerEmails })).toBe(false);
   });
 });
 

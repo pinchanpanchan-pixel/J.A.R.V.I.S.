@@ -40,7 +40,7 @@ if (await p.locator("text=Tu diario privado").count()) await fail("el diario deb
 log("Ana: Pro activo, diario desbloqueado");
 await logout(p);
 
-// ---- Usuario 2: PANCHAN100 → propietario de por vida sin pasar por el pago
+// ---- Usuario 2 (v2): PANCHAN100 es solo para propietarios → para Bea no existe
 p = await login(ctx, track, "bea@example.com");
 await completeOnboarding(p, {
   owner: false,
@@ -49,14 +49,17 @@ await completeOnboarding(p, {
     await pg.click("text=Tengo código de descuento");
     await pg.fill('input[aria-label="Código de descuento"]', "PANCHAN100");
     await pg.click("button:has-text('Aplicar')");
-    await pg.waitForSelector("text=Código aplicado, bienvenido hermano");
-    log("PANCHAN100 → «Código aplicado, bienvenido hermano»");
+    await pg.waitForSelector("text=Código no válido");
+    log("PANCHAN100 con una cuenta normal → «Código no válido»");
+    await pg.click("text=Seguir con el plan Free");
   },
 });
 await p.click("a:has-text('Ajustes')");
-await p.waitForSelector("text=OWNER - Lifetime");
-await p.waitForSelector("text=Códigos de descuento");
-log("Bea: PANCHAN100 la convierte en propietaria (OWNER - Lifetime + panel de códigos)");
+await p.waitForSelector("text=Suscripción");
+if (await p.locator("text=OWNER - Lifetime").count()) await fail("Bea no debería ser propietaria");
+if (await p.locator("text=Proveedores de IA").count()) await fail("un cliente no debe ver Proveedores de IA");
+if (await p.locator("text=Códigos de descuento").count()) await fail("un cliente no debe ver Códigos de descuento");
+log("Bea: sigue en Free, sin Proveedores de IA ni Códigos de descuento");
 await logout(p);
 
 // ---- Propietario por email: nunca ve el pago; panel de códigos con CRUD
@@ -66,8 +69,9 @@ await p.click("a:has-text('Ajustes')");
 await p.waitForSelector("text=OWNER - Lifetime");
 if (await p.locator("text=Desbloquea a tu hermano completo").count()) await fail("el propietario no debe ver el pago");
 await p.waitForSelector('[data-testid="code-BROTHER50"] >> text=/Usos 1\/100/');
-await p.waitForSelector('[data-testid="code-PANCHAN100"] >> text=/Usos 1\/∞/');
-log("panel: usos reales (BROTHER50 1/100, PANCHAN100 1/∞)");
+await p.waitForSelector('[data-testid="code-PANCHAN100"] >> text=/Usos 0\/∞/');
+await p.waitForSelector("text=Proveedores de IA");
+log("panel: usos reales (BROTHER50 1/100, PANCHAN100 0/∞: el intento de Bea no cuenta) + Proveedores de IA visible");
 await p.click("text=Crear código");
 await p.fill('input[aria-label="Código"]', "VIP40");
 await p.fill('input[aria-label="Porcentaje"]', "40");
