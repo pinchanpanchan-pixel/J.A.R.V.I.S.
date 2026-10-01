@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Ear, EarOff, MessagesSquare, NotebookPen, PictureInPicture2, SendHorizonal, Square } from "lucide-react";
-import { openQuickNote } from "@/components/QuickNote";
-import { LiquidDot, type DotMode } from "@/components/LiquidDot";
+import { Ear, EarOff, MessagesSquare, PictureInPicture2, SendHorizonal, Square } from "lucide-react";
+import type { DotMode } from "@/components/LiquidDot";
+import { StyledDot } from "@/components/StyleDots";
+import { useUiStyle } from "@/components/providers/StyleController";
 import { ChatHistory } from "@/components/ChatHistory";
 import { Sheet } from "@/components/ui/Sheet";
 import { SyncBadge } from "@/components/MessageCenter";
@@ -24,6 +25,7 @@ export default function BrainPage() {
   const { rows: messages } = useTable("chat_messages", { sort: byCreatedAsc });
   const { handle, busy: textThinking, error } = useAssistant();
   const voice = useVoice();
+  const style = useUiStyle();
   const [text, setText] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [pill, setPill] = useState<string | null>(null);
@@ -102,13 +104,21 @@ export default function BrainPage() {
   };
 
   const pillText =
-    voice.mode === "listening" ? pill || "Te escucho…" : thinking ? (voice.transcript ? `«${voice.transcript}»` : "Pensando…") : pill;
+    style === "pulso" && voice.mode === "listening" ? "Escuchando…" : voice.mode === "listening" ? pill || "Te escucho…" : thinking ? (voice.transcript ? `«${voice.transcript}»` : "Pensando…") : pill;
 
   return (
     <div className="flex min-h-[calc(100dvh-120px)] flex-col">
       <header className="flex items-center justify-between py-2">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">{assistantName}</h1>
+          <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+            {assistantName}
+            {style === "pulso" && (
+              <span className="flex items-center gap-1.5 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-medium text-white/70" data-testid="active-indicator">
+                <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-arc shadow-[0_0_8px_rgb(var(--accent))]" : "bg-white/30"}`} />
+                {online ? "Activo" : "Sin conexión"}
+              </span>
+            )}
+          </h1>
           <SyncBadge />
         </div>
         <div className="flex items-center gap-2">
@@ -130,10 +140,17 @@ export default function BrainPage() {
       </header>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6">
-        <p className="text-center text-sm text-white/45">
-          {greeting}, {userName}
-          {greeting.startsWith("¿") ? "?" : "."}
-        </p>
+        {style !== "pulso" && (
+          <p
+            className={
+              style === "constelacion" ? "font-greeting text-center text-[34px] leading-tight text-white/90" : "text-center text-sm text-white/45"
+            }
+            data-testid="greeting"
+          >
+            {greeting}, {userName}
+            {greeting.startsWith("¿") ? "?" : "."}
+          </p>
+        )}
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 120, damping: 14 }}>
           <button
             type="button"
@@ -152,8 +169,9 @@ export default function BrainPage() {
             className="touch-none select-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-arc/60"
             style={{ WebkitTouchCallout: "none" }}
             data-testid="dot-button"
+            data-notip
           >
-            <LiquidDot mode={mode} getLevel={voice.getLevel} size={200} />
+            <StyledDot mode={mode} getLevel={voice.getLevel} size={200} />
           </button>
         </motion.div>
 
@@ -211,7 +229,7 @@ export default function BrainPage() {
             )}
           </AnimatePresence>
         </div>
-        {voice.mode === "idle" && !pillText && (
+        {voice.mode === "idle" && !pillText && style !== "pulso" && (
           <p className="-mt-3 text-center text-xs text-white/35">Toca la bolita para hablar{holdEnabled ? " · mantenla pulsada para dictar" : ""}</p>
         )}
       </div>
@@ -219,17 +237,8 @@ export default function BrainPage() {
       {/* Siempre por encima de la barra de abajo (también en el ordenador) */}
       <form
         onSubmit={submit}
-        className="sticky bottom-[calc(env(safe-area-inset-bottom)+84px)] z-20 mt-6 flex items-center gap-3 bg-gradient-to-t from-navy-900 via-navy-900/90 to-transparent pb-2 pt-4"
+        className="sticky bottom-[calc(env(safe-area-inset-bottom)+84px)] z-20 mt-6 flex items-center gap-3 pb-2 pt-4"
       >
-        <button
-          type="button"
-          onClick={() => openQuickNote()}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-arc text-navy-900 shadow-[0_8px_24px_rgba(100,255,218,.3)]"
-          aria-label="Nota rápida"
-          title="Nota rápida"
-        >
-          <NotebookPen className="h-5 w-5" />
-        </button>
         <input className="jv-input rounded-full" placeholder="Escríbeme, hermano…" value={text} onChange={(e) => setText(e.target.value)} enterKeyHint="send" />
         <button type="submit" disabled={!text.trim() || thinking} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 text-arc disabled:opacity-40" aria-label="Enviar">
           <SendHorizonal className="h-5 w-5" />

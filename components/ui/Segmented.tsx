@@ -1,5 +1,8 @@
 "use client";
+import { motion } from "framer-motion";
+import { GLASS } from "@/components/BottomNav";
 
+/** Control segmentado en cápsula de cristal: la opción activa lleva una píldora más clara y texto de acento. */
 export function Segmented<T extends string>({
   value,
   options,
@@ -12,7 +15,7 @@ export function Segmented<T extends string>({
   id: string;
 }) {
   return (
-    <div className="flex rounded-2xl bg-white/5 p-1" role="tablist" id={id}>
+    <div className={`flex rounded-full p-1 ${GLASS}`} role="tablist" id={id}>
       {options.map((o) => {
         const active = value === o.value;
         return (
@@ -21,12 +24,20 @@ export function Segmented<T extends string>({
             type="button"
             role="tab"
             aria-selected={active}
+            data-nogrow
             onClick={() => onChange(o.value)}
-            className={`flex-1 whitespace-nowrap rounded-xl px-2 py-2 text-[13px] font-medium transition-colors duration-200 ${
-              active ? "bg-arc text-navy-900 shadow" : "text-white/70 hover:text-white"
+            className={`relative flex-1 whitespace-nowrap rounded-full px-2 py-2 text-[13px] font-medium transition-colors duration-200 ${
+              active ? "text-arc" : "text-white/55 hover:text-white/85"
             }`}
           >
-            {o.label}
+            {active && (
+              <motion.span
+                layoutId={`seg-pill-${id}`}
+                transition={{ type: "spring", stiffness: 520, damping: 38 }}
+                className="absolute inset-0 rounded-full bg-white/[0.12] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+              />
+            )}
+            <span className="relative">{o.label}</span>
           </button>
         );
       })}

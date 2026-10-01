@@ -19,6 +19,7 @@ import {
   MapPin,
   MessageSquareQuote,
   MessagesSquare,
+  Palette,
   PictureInPicture2,
   Plug,
   Siren,
@@ -33,6 +34,8 @@ import { Toggle } from "@/components/ui/Toggle";
 import { Sheet } from "@/components/ui/Sheet";
 import { VoiceSelector } from "@/components/VoiceSelector";
 import { VoiceprintEnroll } from "@/components/VoiceprintEnroll";
+import { StylePicker } from "@/components/StylePicker";
+import { styleById } from "@/lib/styles";
 import { ClapSensitivity } from "@/components/settings/ClapSensitivity";
 import { DiaryTimePicker } from "@/components/DiaryTimePicker";
 import { LocationSelector } from "@/components/LocationSelector";
@@ -60,6 +63,7 @@ type SectionId =
   | "perfil"
   | "ubicacion"
   | "voz"
+  | "estilo"
   | "activacion"
   | "tu-voz"
   | "proactivo"
@@ -156,6 +160,7 @@ function SettingsInner() {
         title: "Asistente",
         items: [
           { id: "voz", title: "Voz", icon: AudioLines, color: "#A78BFA", summary: voiceByKey(voice?.voice_key as VoiceKey).name },
+          { id: "estilo", title: "Estilo", icon: Palette, color: "#C4B5FD", summary: styleById(profile?.ui_style).name },
           { id: "activacion", title: "Activación y escucha", icon: Ear, color: "#64FFDA", summary: profile?.wake_word_enabled ? `«${assistantName}»` : "Solo tocando la bolita" },
           { id: "tu-voz", title: "Tu voz", icon: Fingerprint, color: "#F472B6", summary: voice?.voiceprint?.length ? (voice.owner_voice_only ? "Solo te respondo a ti" : "Grabada, sin filtrar") : "Sin grabar" },
           { id: "proactivo", title: "Te hablo yo primero", icon: MessagesSquare, color: "#FBBF24", summary: onOff(profile?.proactive_enabled !== false) },
@@ -221,6 +226,11 @@ function SettingsInner() {
     voz: (
       <Section title="Elige mi voz" description={features.premiumVoice ? "Voces neuronales. Toca ▶ para escuchar cada una." : "Plan Free: voz del sistema. Las 4 voces neuronales llegan con Pro."}>
         <VoiceSelector value={(voice?.voice_key ?? "british_original") as VoiceKey} onChange={(k) => void updateVoice({ voice_key: k })} maxVoices={features.voices} premium={features.premiumVoice} />
+      </Section>
+    ),
+    estilo: (
+      <Section description="Fondo, bolita, colores y animaciones. Constelación y Pulso de luz son de los planes de pago.">
+        <StylePicker />
       </Section>
     ),
     activacion: (

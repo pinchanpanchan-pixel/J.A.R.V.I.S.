@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/AppProviders";
+
+// Letra serif del saludo en el estilo Constelación (se sirve desde el propio dominio).
+const serif = Instrument_Serif({ weight: "400", subsets: ["latin"], variable: "--font-serif", display: "swap" });
+
+/** Aplica el estilo guardado antes de pintar (sin parpadeo del estilo por defecto). */
+const STYLE_BOOT = `try{var s=localStorage.getItem("jarvis.style");if(s==="constelacion"||s==="pulso")document.documentElement.dataset.style=s}catch(e){}`;
 
 export const metadata: Metadata = {
   title: "J.A.R.V.I.S.",
@@ -28,7 +35,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es" className={serif.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: STYLE_BOOT }} />
+      </head>
       <body className="font-sans">
         <AppProviders>{children}</AppProviders>
       </body>

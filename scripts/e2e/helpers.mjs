@@ -79,6 +79,8 @@ export async function completeOnboarding(p, { owner, name = "Pancho", assistant 
   await p.waitForSelector("text=Aprende tu voz");
   await shot?.(p, `onb2b-${tag}`);
   await p.click("text=Ahora no");
+  await p.waitForSelector("text=Elige tu estilo");
+  await p.click("text=Continuar");
   await p.waitForSelector("text=Conecta tu mundo");
   // v2: cada app se conecta con su inicio de sesión (en modo simulado, conexión de prueba)
   await p.click('[data-testid="connector-spotify"]');
@@ -124,6 +126,8 @@ export async function addQuickNote(p, text) {
   await p.bringToFront();
   await p.click('button[aria-label="Nota rápida"]');
   await p.fill('[role="dialog"] textarea', text);
+  // La hoja termina de abrirse antes de medir (solo se mide la sincronización).
+  await p.locator('[role="dialog"] button:has-text("Guardar")').click({ trial: true });
   const savedAt = Date.now();
   await p.click('[role="dialog"] button:has-text("Guardar")');
   await p.waitForSelector('[role="dialog"]', { state: "detached" });

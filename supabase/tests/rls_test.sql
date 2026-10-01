@@ -163,3 +163,19 @@ do $$ begin
 end $$;
 reset role;
 \echo 'V2 USERS SYNC DB TEST PASSED'
+
+-- v2 fase 6: una cuenta Free no puede guardar un estilo de pago; un propietario sí
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+update public.users set ui_style = 'pulso' where id = '00000000-0000-0000-0000-00000000000b';
+do $$ begin
+  assert (select ui_style from public.users) = 'actual', 'free user stays on actual style';
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);
+update public.users set ui_style = 'constelacion' where id = '00000000-0000-0000-0000-00000000000c';
+do $$ begin
+  assert (select ui_style from public.users) = 'constelacion', 'owner can use paid style';
+end $$;
+reset role;
+\echo 'V2 STYLES DB TEST PASSED'
+

@@ -2,7 +2,7 @@
 import { Suspense, type ReactNode } from "react";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { BottomNav } from "@/components/BottomNav";
-import { QuickNoteFab } from "@/components/QuickNote";
+import { QuickNoteSheet } from "@/components/QuickNote";
 import { OnboardingCard } from "@/components/OnboardingCard";
 import { FloatingDot } from "@/components/FloatingDot";
 import { DiaryPrompt } from "@/components/DiaryPrompt";
@@ -12,6 +12,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AutomationRunner } from "@/components/providers/AutomationRunner";
 import { WorldMonitorProvider } from "@/components/providers/WorldMonitorProvider";
 import { ProactiveProvider } from "@/components/providers/ProactiveProvider";
+import { StyleController } from "@/components/providers/StyleController";
+import { TooltipLayer } from "@/components/TooltipLayer";
 
 function Shell({ children }: { children: ReactNode }) {
   const { profile } = useProfile();
@@ -24,11 +26,12 @@ function Shell({ children }: { children: ReactNode }) {
           <ErrorBoundary label="pantalla">{children}</ErrorBoundary>
         </main>
         <Suspense>
-          <QuickNoteFab />
+          <QuickNoteSheet />
         </Suspense>
         <BottomNav />
         {!onboarding && <FloatingDot />}
         {!onboarding && <DiaryPrompt />}
+        <TooltipLayer />
       </div>
       {onboarding && <OnboardingCard />}
     </>
@@ -42,6 +45,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <AutomationRunner />
         <WorldMonitorProvider />
         <ProactiveProvider />
+        <StyleController />
         <Shell>{children}</Shell>
       </VoiceProvider>
     </RequireAuth>

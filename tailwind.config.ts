@@ -5,8 +5,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        navy: { 950: "#001122", 900: "#0A192F", 800: "#0F2440", 700: "#16304F", 600: "#1E3D63" },
-        arc: { DEFAULT: "#64FFDA", soft: "#9DF5E3", glow: "#38BDF8" },
+        // Variables por estilo (app/globals.css). En «Actual» son los mismos colores de siempre.
+        navy: {
+          950: "rgb(var(--navy-950-rgb) / <alpha-value>)",
+          900: "rgb(var(--navy-900-rgb) / <alpha-value>)",
+          800: "rgb(var(--navy-800-rgb) / <alpha-value>)",
+          700: "rgb(var(--navy-700-rgb) / <alpha-value>)",
+          600: "rgb(var(--navy-600-rgb) / <alpha-value>)",
+        },
+        arc: { DEFAULT: "rgb(var(--accent) / <alpha-value>)", soft: "#9DF5E3", glow: "#38BDF8" },
         alert: "#FF3B30",
         gold: "#F5C451",
       },

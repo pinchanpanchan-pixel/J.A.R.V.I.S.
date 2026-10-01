@@ -25,6 +25,8 @@ await a.waitForTimeout(3000); // deja que termine de subir la cola del onboardin
 await a.bringToFront();
 await a.click('button[aria-label="Nota rápida"]');
 await a.fill('[role="dialog"] textarea', "Comprar leche");
+// La hoja termina de abrirse antes de medir (solo se mide la sincronización).
+await a.locator('[role="dialog"] button:has-text("Guardar")').click({ trial: true });
 const appeared = b.waitForSelector("text=Comprar leche", { timeout: 5000 }); // se vigila B en paralelo
 const savedAt = Date.now();
 await a.click('[role="dialog"] button:has-text("Guardar")');

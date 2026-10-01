@@ -30,6 +30,7 @@ export async function mockBootstrapUser(cloud: MockRemote, user: { id: string; e
       wake_word_enabled: true,
       proactive_enabled: true,
       morning_brief_enabled: true,
+      ui_style: "actual",
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       locale: "es",
     } as AnyRow);

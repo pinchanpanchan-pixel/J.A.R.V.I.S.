@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useMotionValue } from "framer-motion";
 import { ExternalLink, Mic, NotebookPen, X } from "lucide-react";
-import { LiquidDot } from "@/components/LiquidDot";
+import { StyledDot } from "@/components/StyleDots";
 import { openQuickNote } from "@/components/QuickNote";
 import { useProfile } from "@/hooks/useProfile";
 import { emit, JARVIS_EVENTS } from "@/lib/events";
@@ -137,7 +137,7 @@ export function FloatingDot() {
           className="rounded-full bg-transparent"
           aria-label={`Hablar con ${assistantName}`}
         >
-          <LiquidDot mode="idle" size={96} />
+          <StyledDot mode="idle" size={96} />
         </button>
         <div className="flex w-full gap-2">
           <button
@@ -226,9 +226,10 @@ export function FloatingDot() {
             exit={{ scale: 0.6, opacity: 0 }}
             onClick={() => !dragged.current && expand()}
             aria-label={`${assistantName} flotante`}
+            data-notip
             className="flex h-20 w-20 items-center justify-center rounded-full"
           >
-            <LiquidDot mode="idle" size={56} />
+            <StyledDot mode="idle" size={56} />
           </motion.button>
         )}
       </AnimatePresence>

@@ -16,10 +16,9 @@ const { browser, track, fail, shot, finish } = await setup();
   const input = await p.locator('input[placeholder="Escríbeme, hermano…"]').boundingBox();
   const nav = await p.locator('nav[aria-label="Navegación principal"]').boundingBox();
   if (input.y + input.height > nav.y) await fail(`el cuadro de escribir queda detrás de la barra (${input.y + input.height} > ${nav.y})`);
-  const note = await p.locator('form button[aria-label="Nota rápida"]').boundingBox();
+  const note = await p.locator('nav button[aria-label="Nota rápida"]').boundingBox();
   const send = await p.locator('button[aria-label="Enviar"]').boundingBox();
-  const gap = send.x - (note.x + note.width);
-  if (gap < 0 ? note.x - (send.x + send.width) < 12 : gap < 12) await fail("Nota rápida y Enviar siguen pegados");
+  if (note.y < send.y + send.height) await fail("Nota rápida y Enviar siguen pegados");
   log("ordenador: cuadro de escribir por encima de la barra; Nota rápida lejos de Enviar");
 
   // Memorias: la cabecera no salta al cambiar de pestaña

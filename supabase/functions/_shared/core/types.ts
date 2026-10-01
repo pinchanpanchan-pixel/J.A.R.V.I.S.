@@ -14,6 +14,8 @@ export interface BaseRow {
   server_updated_at?: string;
 }
 
+export type UiStyle = "actual" | "constelacion" | "pulso";
+
 export interface UserRow extends BaseRow {
   email: string;
   is_owner: boolean;
@@ -32,6 +34,7 @@ export interface UserRow extends BaseRow {
   wake_word_enabled: boolean;
   proactive_enabled: boolean;
   morning_brief_enabled: boolean;
+  ui_style: UiStyle;
   timezone: string | null;
   locale: string | null;
 }
