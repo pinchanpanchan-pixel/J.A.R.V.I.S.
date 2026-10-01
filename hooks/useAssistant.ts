@@ -8,7 +8,7 @@ import { useTable } from "@/hooks/useTable";
 import { openQuickNote } from "@/components/QuickNote";
 import { apiJson } from "@/lib/api";
 import { stableId } from "@/lib/ids";
-import { effectiveShortcuts } from "@/lib/shortcuts";
+import { connectedSet, effectiveShortcuts } from "@/lib/shortcuts";
 import { routeUtterance } from "@/skills";
 import type { SkillContext } from "@/skills/types";
 
@@ -28,6 +28,9 @@ export function useAssistant() {
   const { user, userName, assistantName, features } = useProfile();
   const brain = useBrain();
   const { rows: shortcutRows } = useTable("shortcuts");
+  const { rows: connectorRows } = useTable("connectors_tokens");
+  const connectorsRef = useRef(connectorRows);
+  connectorsRef.current = connectorRows;
   const [busy, setBusy] = useState(false);
   const shortcutsRef = useRef(shortcutRows);
   shortcutsRef.current = shortcutRows;
@@ -53,7 +56,7 @@ export function useAssistant() {
           connector: (provider, body) => apiJson(`/api/connectors/${provider}/action`, { method: "POST", body: JSON.stringify(body) }),
           now: () => new Date(),
         };
-        const r = await routeUtterance(message, ctx, effectiveShortcuts(shortcutsRef.current));
+        const r = await routeUtterance(message, ctx, effectiveShortcuts(shortcutsRef.current, connectedSet(connectorsRef.current)));
         if (r) {
           if (r.reply) await engine.insert("chat_messages", { role: "assistant", content: r.reply, provider: "skill", metadata: {} });
           if (r.navigate) router.push(r.navigate);

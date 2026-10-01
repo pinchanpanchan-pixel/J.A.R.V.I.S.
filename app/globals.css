@@ -37,6 +37,25 @@ textarea,
 }
 
 @layer components {
+  /* Barra deslizante fluida (relleno hasta --pct) */
+  .jv-range {
+    @apply h-7 cursor-pointer appearance-none bg-transparent;
+    touch-action: pan-y;
+  }
+  .jv-range::-webkit-slider-runnable-track {
+    @apply h-1.5 rounded-full;
+    background: linear-gradient(to right, #64ffda var(--pct, 50%), rgba(255, 255, 255, 0.12) var(--pct, 50%));
+  }
+  .jv-range::-moz-range-track {
+    @apply h-1.5 rounded-full;
+    background: linear-gradient(to right, #64ffda var(--pct, 50%), rgba(255, 255, 255, 0.12) var(--pct, 50%));
+  }
+  .jv-range::-webkit-slider-thumb {
+    @apply -mt-[9px] h-6 w-6 appearance-none rounded-full border border-white/40 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.35)];
+  }
+  .jv-range::-moz-range-thumb {
+    @apply h-6 w-6 rounded-full border border-white/40 bg-white;
+  }
   .jv-input {
     @apply w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5 text-[15px] text-white placeholder-white/35 outline-none transition focus:border-arc/60 focus:bg-white/[0.07];
   }

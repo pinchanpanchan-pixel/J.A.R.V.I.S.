@@ -25,9 +25,11 @@ export async function mockBootstrapUser(cloud: MockRemote, user: { id: string; e
       diary_reminder_time: "22:30",
       diary_reminder_label: "Noche",
       floating_mode_enabled: false,
-      wake_clap_enabled: true,
+      wake_clap_enabled: false,
       wake_button_enabled: true,
       wake_word_enabled: true,
+      proactive_enabled: true,
+      morning_brief_enabled: true,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       locale: "es",
     } as AnyRow);
@@ -51,6 +53,9 @@ export async function mockBootstrapUser(cloud: MockRemote, user: { id: string; e
       volume: 1,
       wake_word: null,
       clap_threshold: 0.35,
+      voiceprint: null,
+      voiceprint_threshold: 0.82,
+      owner_voice_only: false,
     } as AnyRow);
   }
   if (!(await cloud.getRow("world_monitor_settings", user.id))) {

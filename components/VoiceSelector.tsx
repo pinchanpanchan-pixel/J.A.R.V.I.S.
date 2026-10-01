@@ -3,12 +3,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Lock, Play, Square } from "lucide-react";
 import { VOICES } from "@/lib/voices";
-import {
-  onTtsNotice,
-  previewVoice,
-  stopSpeaking,
-  type TtsNotice,
-} from "@/services/tts";
+import { onTtsNotice, previewVoice, stopSpeaking, type TtsNotice } from "@/services/tts";
 import type { VoiceKey } from "@/types/db";
 
 /** 4 tarjetas de voz (2x2) con botón de reproducir y anillo de selección. */
@@ -61,15 +56,9 @@ export function VoiceSelector({
               tabIndex={0}
               whileTap={{ scale: locked ? 1 : 0.97 }}
               onClick={() => !locked && onChange(v.key)}
-              onKeyDown={(e) =>
-                (e.key === "Enter" || e.key === " ") &&
-                !locked &&
-                onChange(v.key)
-              }
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && !locked && onChange(v.key)}
               className={`relative flex cursor-pointer flex-col gap-3 rounded-3xl border p-4 transition ${
-                selected
-                  ? "border-transparent bg-white/10"
-                  : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+                selected ? "border-transparent bg-white/10" : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
               } ${locked ? "cursor-not-allowed opacity-45" : ""}`}
               style={
                 selected
@@ -90,34 +79,21 @@ export function VoiceSelector({
                   style={{ background: v.accent }}
                   aria-label={`Escuchar ${v.name}`}
                 >
-                  {playing === v.key ? (
-                    <Square className="h-4 w-4" />
-                  ) : (
-                    <Play className="ml-0.5 h-4 w-4" />
-                  )}
+                  {playing === v.key ? <Square className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
                 </button>
-                {selected && (
-                  <Check className="h-5 w-5" style={{ color: v.accent }} />
-                )}
+                {selected && <Check className="h-5 w-5" style={{ color: v.accent }} />}
                 {locked && <Lock className="h-4 w-4 text-white/60" />}
               </div>
               <div>
-                <div className="text-[15px] font-semibold leading-tight">
-                  {v.name}
-                </div>
-                <div className="mt-1 text-xs leading-snug text-white/55">
-                  {v.description}
-                </div>
+                <div className="text-[15px] font-semibold leading-tight">{v.name}</div>
+                <div className="mt-1 text-xs leading-snug text-white/55">{v.description}</div>
               </div>
             </motion.div>
           );
         })}
       </div>
       {(notice === "unavailable" || notice === "failed") && (
-        <p
-          role="status"
-          className="text-center text-[11.5px] leading-snug text-amber-200/80"
-        >
+        <p role="status" className="text-center text-[11.5px] leading-snug text-amber-200/80">
           {notice === "failed"
             ? "La voz neuronal no ha respondido: ahora suena la voz del navegador. Vuelve a probar en un momento."
             : "Las voces neuronales aún no están activas: de momento suena la voz del navegador."}
@@ -125,8 +101,7 @@ export function VoiceSelector({
       )}
       {!premium && notice !== "unavailable" && notice !== "failed" && (
         <p className="text-center text-[11.5px] leading-snug text-white/40">
-          Las muestras suenan con la voz real; en tu plan, J.A.R.V.I.S. habla
-          con la voz del navegador.
+          Las muestras suenan con la voz real; en tu plan, J.A.R.V.I.S. habla con la voz del navegador.
         </p>
       )}
     </div>

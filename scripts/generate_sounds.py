@@ -56,13 +56,30 @@ def save(name, samples, gain=0.9):
 
 H = ((1, 1.0), (2, 0.25), (3, 0.08))
 
-# Activación: "bup bup" — dos blips cortos y limpios con subida de tono y un leve eco tecnológico
-b1 = tone(lambda t: 880 + 900 * min(1, t / 0.03), 0.07, 0.6, H, 0.002, 0.03)
-b2 = tone(lambda t: 1175 + 1100 * min(1, t / 0.03), 0.08, 0.6, H, 0.002, 0.04)
-save("activate.mp3", echo(b1 + silence(0.045) + b2, 0.07, 0.22, 2))
+# Activación (v2): campanita de cristal suave, dos notas en quinta (La5 → Mi6) que se solapan,
+# con parciales de campana, ataque muy corto, caída exponencial y una cola de sala discreta.
+def bell(freq, dur, vol=0.5, decay=6.0):
+    n = int(SR * dur)
+    parts = ((1.0, 1.0), (2.0, 0.18), (2.76, 0.10), (5.4, 0.03))
+    out = []
+    for i in range(n):
+        t = i / SR
+        e = min(1.0, t / 0.006) * math.exp(-decay * t)
+        out.append(vol * e * sum(a * math.sin(2 * math.pi * freq * r * t) for r, a in parts))
+    return out
 
-# Desactivación (fin de escucha): blip descendente suave
-save("deactivate.mp3", echo(tone(lambda t: 1400 - 700 * min(1, t / 0.08), 0.09, 0.5, H, 0.002, 0.05), 0.06, 0.2, 2))
+def room(x, taps=((0.031, 0.22), (0.053, 0.16), (0.079, 0.11), (0.113, 0.07))):
+    y = list(x) + [0.0] * int(SR * 0.2)
+    for d, g in taps:
+        k = int(SR * d)
+        for i in range(len(x)):
+            y[i + k] += x[i] * g
+    return y
+
+save("activate.mp3", room(mix(bell(880.0, 0.75, 0.42, 7.0), silence(0.075) + bell(1318.5, 0.7, 0.38, 6.5))), gain=0.6)
+
+# Desactivación: una sola nota suave que baja (Mi6 → La5), más corta y discreta.
+save("deactivate.mp3", room(bell(1318.5, 0.18, 0.3, 14.0) + bell(880.0, 0.4, 0.28, 9.0)), gain=0.45)
 
 # Alertas WorldMonitor
 siren = tone(lambda t: 750 + 450 * (0.5 + 0.5 * math.sin(2 * math.pi * 1.6 * t)), 3.0, 0.7, ((1, 1), (2, 0.4), (3, 0.2)), 0.02, 0.2)

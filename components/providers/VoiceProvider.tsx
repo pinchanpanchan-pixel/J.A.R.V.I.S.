@@ -13,9 +13,17 @@ import { ClapDetector } from "@/services/audio/clapDetector";
 import { matchWake } from "@/services/audio/wakeWord";
 import { startRecognition, recognitionSupported, type Recognizer } from "@/services/audio/recognition";
 import { playActivation, playAlert, playDeactivation, preloadSounds } from "@/services/audio/sounds";
-import { isSpeaking, speak as ttsSpeak, speechLevel, stopSpeaking } from "@/services/tts";
+import { isSpeaking, primeTtsPlayers, speak as ttsSpeak, speechLevel, stopSpeaking } from "@/services/tts";
 import { transcribe } from "@/services/stt";
+import { embedding, similarity, wavToPcm, VOICEPRINT_RATE } from "@/services/audio/voiceprint";
+import { downsample } from "@/services/audio/wav";
+import { normalizeWake } from "@/services/audio/wakeWord";
 import type { VoiceKey } from "@/types/db";
+
+const EAR_OFF_KEY = "jarvis.earOff";
+/** Tras responder por voz, sigue escuchando este tiempo por si continúas la conversación. */
+const FOLLOW_UP_MS = 6000;
+const MAX_FOLLOW_UPS = 2;
 
 export type VoiceMode = "idle" | "listening" | "thinking" | "speaking";
 type Source = "button" | "clap" | "wake" | "event";
@@ -35,10 +43,14 @@ interface VoiceContextValue {
   /** J.A.R.V.I.S. interrumpe al usuario (p.ej. alerta de WorldMonitor). */
   interrupt: (text: string, opts?: { sound?: string }) => Promise<void>;
   stop: () => void;
-  /** Escucha continua (palmadas / palabra de activación) activa. */
+  /** Escucha continua (palabra de activación / palmadas) activa. */
   wakeActive: boolean;
   wakeWanted: boolean;
+  /** El usuario ha apagado la oreja en este dispositivo. */
+  wakePaused: boolean;
   enableWake: () => Promise<void>;
+  /** Oreja: enciende o apaga la escucha continua en este dispositivo. */
+  toggleWake: () => Promise<void>;
   recognitionAvailable: boolean;
 }
 
@@ -57,8 +69,20 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   };
   const [transcript, setTranscript] = useState<string | null>(null);
   const [reply, setReply] = useState<string | null>(null);
+  const replyRef = useRef<string | null>(null);
+  replyRef.current = reply;
   const [notice, setNotice] = useState<string | null>(null);
   const [wakeActive, setWakeActive] = useState(false);
+  const [wakePaused, setWakePaused] = useState(false);
+  const wakeActiveRef = useRef(false);
+  wakeActiveRef.current = wakeActive;
+  useEffect(() => {
+    try {
+      setWakePaused(localStorage.getItem(EAR_OFF_KEY) === "1");
+    } catch {
+      /* sin almacenamiento: oreja encendida */
+    }
+  }, []);
 
   const captureRef = useRef<PhraseCapture | null>(null);
   const liveRecRef = useRef<Recognizer | null>(null);
@@ -67,8 +91,19 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const holdingRef = useRef(false);
 
   // Ajustes actuales en refs (evita cierres obsoletos en callbacks de audio)
-  const cfg = useRef({ voice: "british_original" as VoiceKey, premium: false, rate: 1, volume: 1, assistantName, userName });
+  const cfg = useRef({
+    voice: "british_original" as VoiceKey,
+    premium: false,
+    rate: 1,
+    volume: 1,
+    assistantName,
+    userName,
+    print: null as number[] | null,
+    printThreshold: 0.82,
+  });
   cfg.current = {
+    print: voice?.owner_voice_only && Array.isArray(voice.voiceprint) && voice.voiceprint.length ? voice.voiceprint : null,
+    printThreshold: Number(voice?.voiceprint_threshold ?? 0.82),
     voice: (voice?.voice_key ?? "british_original") as VoiceKey,
     premium: features.premiumVoice,
     rate: Number(voice?.rate ?? 1),
@@ -79,10 +114,14 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const wakeWordOn = !!profile?.wake_word_enabled;
   const clapOn = !!profile?.wake_clap_enabled;
   const wakeWanted = wakeWordOn || clapOn;
+  const ownerOnly = !!(voice?.owner_voice_only && voice?.voiceprint?.length);
 
   useEffect(() => {
     installAudioUnlock();
     preloadSounds();
+    const prime = () => primeTtsPlayers();
+    window.addEventListener("pointerdown", prime, { once: true });
+    return () => window.removeEventListener("pointerdown", prime);
   }, []);
 
   const flash = (msg: string) => {
@@ -107,16 +146,64 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     liveRecRef.current?.stop();
     liveRecRef.current = null;
     holdingRef.current = false;
+    if (!wakeActiveRef.current) mic.stop();
     setMode("idle");
+  }, []);
+
+  // ------------------------------------------------------------------
+  // Voz del dueño: últimos segundos del micro para verificar órdenes directas
+  // («Jarvis, apaga la luz») y comprobación de la huella.
+  // ------------------------------------------------------------------
+  const ringRef = useRef<Float32Array[]>([]);
+  useEffect(() => {
+    if (!ownerOnly || !wakeActive) {
+      ringRef.current = [];
+      return;
+    }
+    const off = mic.onFrame((f) => {
+      const ring = ringRef.current;
+      ring.push(f.samples);
+      const max = Math.ceil((4 * mic.sampleRate) / f.samples.length); // ~4 s
+      if (ring.length > max) ring.splice(0, ring.length - max);
+    });
+    return off;
+  }, [ownerOnly, wakeActive]);
+
+  /** true si no hay huella o si la voz se parece lo suficiente a la del dueño. */
+  const isOwnerVoice = useCallback(async (wav: Blob | null): Promise<boolean> => {
+    const print = cfg.current.print;
+    if (!print) return true;
+    let pcm: Float32Array | null = null;
+    if (wav) pcm = wavToPcm(await wav.arrayBuffer());
+    else if (ringRef.current.length) {
+      const all = new Float32Array(ringRef.current.reduce((n, c) => n + c.length, 0));
+      let o = 0;
+      for (const c of ringRef.current) {
+        all.set(c, o);
+        o += c.length;
+      }
+      pcm = downsample(all, mic.sampleRate, VOICEPRINT_RATE);
+    }
+    const e = pcm ? embedding(pcm) : null;
+    if (!e) return true; // muy poca voz para juzgar: no se bloquea
+    return similarity(e, print) >= cfg.current.printThreshold;
   }, []);
 
   // ------------------------------------------------------------------
   // Procesar lo que ha dicho el usuario
   // ------------------------------------------------------------------
+  const followUpRef = useRef<() => void>(() => undefined);
+  const followUpsRef = useRef(0);
   const processPhrase = useCallback(
-    async (phrase: CapturedPhrase | null, liveText: string) => {
+    async (phrase: CapturedPhrase | null, liveText: string, origin: "manual" | "vad" | "followup" | "wake" = "vad") => {
       if (!phrase && !liveText) {
         setMode("idle");
+        return;
+      }
+      // Solo el dueño (si grabó su voz y lo activó): al resto se le ignora en silencio.
+      if (cfg.current.print && !(await isOwnerVoice(phrase?.wav ?? null))) {
+        setMode("idle");
+        if (origin === "manual") flash(`Solo respondo a la voz de ${cfg.current.userName}.`);
         return;
       }
       // Sin conexión: modo grabadora — se guarda y se procesa al volver la red.
@@ -130,10 +217,11 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       }
       setMode("thinking");
       const prompt = `${cfg.current.assistantName}, ${cfg.current.userName}.`;
-      const text = (phrase ? await transcribe(phrase.wav, { prompt }) : null) ?? liveText;
+      const text = (phrase ? await transcribe(phrase.wav, { prompt, timeoutMs: liveText ? 10_000 : 20_000 }) : null) ?? liveText;
       if (!text?.trim()) {
         setMode("idle");
-        flash("No te he entendido, hermano. Repítemelo.");
+        // Ruido sin frase: silencio total. Solo se avisa si lo pediste tú manteniendo pulsado.
+        if (origin === "manual") flash("No te he entendido, hermano. Repítemelo.");
         return;
       }
       setTranscript(text);
@@ -143,8 +231,10 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         return;
       }
       await speak(res.reply);
+      // Conversación de verdad: tras responder sigue escuchando unos segundos sin repetir su nombre.
+      if (modeRef.current === "idle" && document.visibilityState === "visible") followUpRef.current();
     },
-    [kvFactory, user, handle, speak],
+    [kvFactory, user, handle, speak, isOwnerVoice],
   );
 
   // ------------------------------------------------------------------
@@ -166,6 +256,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         if (!isFinal) return;
         const m = matchWake(text, cfg.current.assistantName);
         if (!m.matched) return;
+        // Mientras habla, no se activa con su propia voz (el texto oído está en su respuesta).
+        if (isSpeaking() && replyRef.current && normalizeWake(replyRef.current).includes(normalizeWake(text))) return;
         if (m.command.length > 2) handleCommandRef.current(m.command);
         else activateRef.current("wake");
       },
@@ -175,7 +267,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const startClap = useCallback(async () => {
     if (!clapOn || clapUnsubRef.current) return;
     await mic.start();
-    const det = new ClapDetector({ threshold: Number(voice?.clap_threshold ?? 0.35) });
+    // Más exigente que antes con el ruido de fondo: una palmada es un golpe seco muy por encima del ambiente.
+    const det = new ClapDetector({ threshold: Number(voice?.clap_threshold ?? 0.35), noiseRatio: 6 });
     clapUnsubRef.current = mic.onFrame((f) => {
       if (holdingRef.current || modeRef.current === "listening" || modeRef.current === "thinking") return;
       if (det.feed(f.peak, f.rms, f.t)) activateRef.current("clap");
@@ -203,9 +296,21 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     }
   }, [clapOn, startClap, startWakeRecognition]);
 
+  const toggleWake = useCallback(async () => {
+    const pause = wakeActive; // encendida -> se apaga; apagada -> se enciende
+    try {
+      localStorage.setItem(EAR_OFF_KEY, pause ? "1" : "0");
+    } catch {
+      /* nada */
+    }
+    setWakePaused(pause);
+    if (pause) stopWake();
+    else await enableWake();
+  }, [wakeActive, stopWake, enableWake]);
+
   // Arranque automático si el permiso ya estaba concedido; pausa en segundo plano.
   useEffect(() => {
-    if (!wakeWanted) {
+    if (!wakeWanted || wakePaused) {
       stopWake();
       return;
     }
@@ -223,7 +328,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       document.removeEventListener("visibilitychange", sync);
     };
-  }, [wakeWanted, enableWake, stopWake]);
+  }, [wakeWanted, wakePaused, enableWake, stopWake]);
 
   // Si cambia el ajuste de palmada / palabra, reinicia lo necesario
   useEffect(() => {
@@ -242,13 +347,13 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   // Captura de frase (compartida por botón / palmada / palabra)
   // ------------------------------------------------------------------
   const beginCapture = useCallback(
-    async (kind: "manual" | "vad") => {
+    async (kind: "manual" | "vad", origin: "manual" | "vad" | "followup" = kind) => {
       stopSpeaking(); // el usuario interrumpe a J.A.R.V.I.S.
       captureRef.current?.cancel();
       stopWakeRecognition(); // un solo reconocedor a la vez
       setTranscript(null);
       setMode("listening");
-      const cap = new PhraseCapture(kind, { noSpeechTimeoutMs: 7000 });
+      const cap = new PhraseCapture(kind, { noSpeechTimeoutMs: origin === "followup" ? FOLLOW_UP_MS : 7000 });
       captureRef.current = cap;
       let live = "";
       liveRecRef.current = startRecognition({
@@ -271,20 +376,24 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       liveRecRef.current = null;
       if (captureRef.current !== cap) return; // cancelada o sustituida
       captureRef.current = null;
-      void playDeactivation();
-      if (wakeActive || wakeWordOn) startWakeRecognition();
+      if (phrase || origin !== "followup") void playDeactivation();
+      if (wakeActive) startWakeRecognition();
       if (!phrase && !holdingRef.current && kind === "vad" && !live) {
         setMode("idle");
+        if (!wakeActiveRef.current) mic.stop();
         return;
       }
-      await processPhrase(phrase, live);
+      await processPhrase(phrase, live, origin);
+      // Sin escucha continua el micro se cierra al terminar (no queda abierto en segundo plano).
+      if (!captureRef.current && !wakeActiveRef.current) mic.stop();
     },
-    [processPhrase, startWakeRecognition, stopWakeRecognition, wakeActive, wakeWordOn],
+    [processPhrase, startWakeRecognition, stopWakeRecognition, wakeActive],
   );
 
   const activate = useCallback(
     (_source: Source = "button") => {
       if (modeRef.current === "listening" || modeRef.current === "thinking") return;
+      followUpsRef.current = 0;
       void unlockAudio();
       void playActivation();
       void beginCapture("vad");
@@ -292,18 +401,27 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     [beginCapture],
   );
   activateRef.current = activate;
+  followUpRef.current = () => {
+    // Solo si el micro ya está abierto (escucha activa o conversación por voz), y como mucho
+    // dos réplicas seguidas sin volver a decir su nombre (que la tele no le dé conversación).
+    if (!mic.active || followUpsRef.current >= MAX_FOLLOW_UPS) return;
+    followUpsRef.current++;
+    void beginCapture("vad", "followup");
+  };
 
   handleCommandRef.current = (cmd: string) => {
     if (modeRef.current === "listening" || modeRef.current === "thinking") return;
     stopSpeaking();
+    followUpsRef.current = 0;
     void playActivation();
     setTranscript(cmd);
-    void processPhrase(null, cmd);
+    void processPhrase(null, cmd, "wake");
   };
 
   const holdStart = useCallback(() => {
     if (!profile?.wake_button_enabled) return;
     holdingRef.current = true;
+    followUpsRef.current = 0;
     void unlockAudio();
     void beginCapture("manual");
   }, [beginCapture, profile?.wake_button_enabled]);
@@ -369,10 +487,12 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       stop,
       wakeActive,
       wakeWanted,
+      wakePaused,
       enableWake,
+      toggleWake,
       recognitionAvailable: typeof window !== "undefined" && recognitionSupported(),
     }),
-    [mode, transcript, reply, notice, getLevel, holdStart, holdEnd, activate, speak, interrupt, stop, wakeActive, wakeWanted, enableWake],
+    [mode, transcript, reply, notice, getLevel, holdStart, holdEnd, activate, speak, interrupt, stop, wakeActive, wakeWanted, wakePaused, enableWake, toggleWake],
   );
 
   return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>;

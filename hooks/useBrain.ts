@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { useSync } from "@/components/providers/SyncProvider";
 import { useProfile } from "@/hooks/useProfile";
 import { apiJson } from "@/lib/api";
-import { searchItems } from "@/lib/search";
+import { recallMemories } from "@/lib/brain/recall";
 import { isMockMode } from "@/lib/env";
 import { stableId } from "@/lib/ids";
 import type { ProviderAttempt } from "@/lib/ai/types";
@@ -45,7 +45,9 @@ export function useBrain() {
           .slice(-13, -1)
           .filter((m) => m.role !== "system")
           .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
-        const memories = searchItems(await engine.list("memory_blocks"), message, 5).map((m) => `${m.title}: ${m.content}`.slice(0, 500));
+        // Antes de responder consulta su memoria: bloques, notas rápidas y diario.
+        const [blocks, notes, diary] = await Promise.all([engine.list("memory_blocks"), engine.list("quick_notes"), engine.list("diary_entries")]);
+        const memories = recallMemories({ blocks, notes, diary }, message);
         const keys = await engine.list("ai_provider_keys");
         const loc = user ? await engine.get("user_locations", stableId(user.id, "primary-location")) : null;
         const res = await apiJson<BrainReply>("/api/brain", {

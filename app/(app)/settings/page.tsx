@@ -6,6 +6,8 @@ import { PlanBadge } from "@/components/settings/PlanBadge";
 import { Toggle } from "@/components/ui/Toggle";
 import { Sheet } from "@/components/ui/Sheet";
 import { VoiceSelector } from "@/components/VoiceSelector";
+import { VoiceprintEnroll } from "@/components/VoiceprintEnroll";
+import { ClapSensitivity } from "@/components/settings/ClapSensitivity";
 import { DiaryTimePicker } from "@/components/DiaryTimePicker";
 import { LocationSelector } from "@/components/LocationSelector";
 import { ConnectorGrid } from "@/components/ConnectorGrid";
@@ -71,34 +73,37 @@ export default function SettingsPage() {
           premium={features.premiumVoice} />
       </Section>
 
-      <Section title="Activación" description="Cómo me despiertas. La app tiene que estar abierta.">
-        <Row label="Doble palmada" hint="Dos palmadas seguidas">
-          <Toggle checked={profile.wake_clap_enabled} onChange={(v) => void updateProfile({ wake_clap_enabled: v })} label="Doble palmada" />
-        </Row>
-        <Row label="Botón rojo" hint="Mantener pulsado para hablar">
-          <Toggle checked={profile.wake_button_enabled} onChange={(v) => void updateProfile({ wake_button_enabled: v })} label="Botón rojo" />
-        </Row>
-        <Row label="Palabra de activación" hint={`«${assistantName}» o «Hey ${assistantName}»`}>
+      <Section title="Activación" description={`Solo me activo con mi nombre: «${assistantName}» o «Oye ${assistantName}». La app tiene que estar abierta.`}>
+        <Row label="Palabra de activación" hint={`«${assistantName}», «Hey ${assistantName}» u «Oye ${assistantName}»`}>
           <Toggle checked={profile.wake_word_enabled} onChange={(v) => void updateProfile({ wake_word_enabled: v })} label="Palabra de activación" />
         </Row>
-        {profile.wake_clap_enabled && (
-          <div className="pt-3">
-            <div className="mb-1 flex justify-between text-xs text-white/50">
-              <span>Sensibilidad de las palmadas</span>
-              <span>{Math.round((1 - Number(voice?.clap_threshold ?? 0.35)) * 100)}%</span>
-            </div>
-            <input
-              type="range"
-              min={0.15}
-              max={0.8}
-              step={0.05}
-              value={1 - Number(voice?.clap_threshold ?? 0.35)}
-              onChange={(e) => void updateVoice({ clap_threshold: Math.round((1 - Number(e.target.value)) * 100) / 100 })}
-              className="w-full accent-arc"
-              aria-label="Sensibilidad de las palmadas"
-            />
-          </div>
-        )}
+        <Row label="Mantener pulsada la bolita" hint="Hablas mientras la sujetas">
+          <Toggle checked={profile.wake_button_enabled} onChange={(v) => void updateProfile({ wake_button_enabled: v })} label="Mantener pulsada la bolita" />
+        </Row>
+        <Row label="Doble palmada" hint="Opcional. Un golpe fuerte también puede activarme">
+          <Toggle checked={profile.wake_clap_enabled} onChange={(v) => void updateProfile({ wake_clap_enabled: v })} label="Doble palmada" />
+        </Row>
+        {profile.wake_clap_enabled && <ClapSensitivity threshold={Number(voice?.clap_threshold ?? 0.35)} onCommit={(t) => void updateVoice({ clap_threshold: t })} />}
+      </Section>
+
+      <Section title="Tu voz" description="Para responder solo cuando hablas tú.">
+        {voice?.voiceprint?.length ? (
+          <Row label="Responder solo a mi voz" hint="Ignoro a la tele y a otras personas">
+            <Toggle checked={!!voice.owner_voice_only} onChange={(v) => void updateVoice({ owner_voice_only: v })} label="Responder solo a mi voz" />
+          </Row>
+        ) : null}
+        <div className={voice?.voiceprint?.length ? "pt-3" : ""}>
+          <VoiceprintEnroll compact={!!voice?.voiceprint?.length} />
+        </div>
+      </Section>
+
+      <Section title="Te hablo yo primero" description="Te saludo al abrir y te aviso de lo importante.">
+        <Row label="Saludo y avisos" hint="Al abrir la app, una vez por la mañana, tarde y noche">
+          <Toggle checked={profile.proactive_enabled !== false} onChange={(v) => void updateProfile({ proactive_enabled: v })} label="Saludo y avisos" />
+        </Row>
+        <Row label="Parte del tiempo por la mañana" hint="Máxima, mínima, lluvia y qué ponerte">
+          <Toggle checked={profile.morning_brief_enabled !== false} onChange={(v) => void updateProfile({ morning_brief_enabled: v })} label="Parte del tiempo por la mañana" />
+        </Row>
       </Section>
 
       <Section title="Modo flotante">

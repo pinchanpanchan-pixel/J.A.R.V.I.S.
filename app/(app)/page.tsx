@@ -1,9 +1,8 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Ear, MessagesSquare, PictureInPicture2, SendHorizonal, Square } from "lucide-react";
+import { Ear, EarOff, MessagesSquare, PictureInPicture2, SendHorizonal, Square } from "lucide-react";
 import { LiquidDot, type DotMode } from "@/components/LiquidDot";
-import { HoldToTalk } from "@/components/HoldToTalk";
 import { ChatHistory } from "@/components/ChatHistory";
 import { Sheet } from "@/components/ui/Sheet";
 import { SyncBadge } from "@/components/MessageCenter";
@@ -68,6 +67,36 @@ export default function BrainPage() {
     return h < 6 ? "¿Todavía despierto" : h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches";
   }, []);
 
+  // La bolita es el control: tocar = hablar; mantener pulsada = dictar mientras la sujetas.
+  const press = useRef<{ timer: ReturnType<typeof setTimeout> | null; held: boolean }>({ timer: null, held: false });
+  const holdEnabled = profile?.wake_button_enabled !== false;
+  const onDotDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    press.current.held = false;
+    if (!holdEnabled) return;
+    press.current.timer = setTimeout(() => {
+      press.current.held = true;
+      voice.holdStart();
+    }, 380);
+  };
+  const onDotUp = () => {
+    if (press.current.timer) clearTimeout(press.current.timer);
+    press.current.timer = null;
+    if (press.current.held) {
+      press.current.held = false;
+      voice.holdEnd();
+      return;
+    }
+    if (voice.mode === "idle") voice.activate("button");
+    else voice.stop();
+  };
+  const onDotCancel = () => {
+    if (press.current.timer) clearTimeout(press.current.timer);
+    press.current.timer = null;
+    if (press.current.held) voice.holdEnd();
+    press.current.held = false;
+  };
+
   const pillText =
     voice.mode === "listening" ? pill || "Te escucho…" : thinking ? (voice.transcript ? `«${voice.transcript}»` : "Pensando…") : pill;
 
@@ -101,7 +130,26 @@ export default function BrainPage() {
           {greeting.startsWith("¿") ? "?" : "."}
         </p>
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 120, damping: 14 }}>
-          <LiquidDot mode={mode} getLevel={voice.getLevel} size={200} onClick={() => voice.activate("button")} ariaLabel={`Hablar con ${assistantName}`} />
+          <button
+            type="button"
+            aria-label={voice.mode === "idle" ? `Hablar con ${assistantName}` : "Parar"}
+            onPointerDown={onDotDown}
+            onPointerUp={onDotUp}
+            onPointerLeave={onDotCancel}
+            onPointerCancel={onDotCancel}
+            onContextMenu={(e) => e.preventDefault()}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" && e.key !== " ") return;
+              e.preventDefault();
+              if (voice.mode === "idle") voice.activate("button");
+              else voice.stop();
+            }}
+            className="touch-none select-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-arc/60"
+            style={{ WebkitTouchCallout: "none" }}
+            data-testid="dot-button"
+          >
+            <LiquidDot mode={mode} getLevel={voice.getLevel} size={200} />
+          </button>
         </motion.div>
 
         {/* Píldora de transcripción en vivo */}
@@ -124,31 +172,43 @@ export default function BrainPage() {
         </div>
         {error && <p className="text-center text-xs text-red-300">{error}</p>}
 
-        <div className="flex items-center gap-5">
-          {voice.wakeWanted && !voice.wakeActive ? (
-            <button onClick={() => void voice.enableWake()} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/70" aria-label="Activar escucha" title="Activar palmadas y palabra de activación">
-              <Ear className="h-5 w-5" />
-            </button>
-          ) : (
-            <span className={`flex h-11 w-11 items-center justify-center rounded-full ${voice.wakeActive ? "text-arc" : "text-transparent"}`} title="Escuchando palmadas y tu palabra de activación" aria-hidden={!voice.wakeActive}>
-              <Ear className="h-5 w-5" />
-            </span>
+        {/* Escucha: un interruptor claro (oreja) y «Parar» solo cuando hace falta */}
+        <div className="flex min-h-[44px] items-center gap-2.5">
+          {voice.wakeWanted && (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              onClick={() => void voice.toggleWake()}
+              aria-pressed={voice.wakeActive}
+              aria-label={voice.wakeActive ? "Apagar la escucha" : "Encender la escucha"}
+              title={voice.wakeActive ? `Te oigo si dices «${assistantName}». Toca para apagar.` : "Toca para que te oiga cuando digas mi nombre"}
+              className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-[13px] transition ${
+                voice.wakeActive ? "border-arc/30 bg-arc/10 text-arc" : "border-white/10 bg-white/[0.04] text-white/55 hover:bg-white/[0.08]"
+              }`}
+            >
+              {voice.wakeActive ? <Ear className="h-4 w-4" /> : <EarOff className="h-4 w-4" />}
+              {voice.wakeActive ? `Di «${assistantName.replace(/\./g, "")}»` : voice.wakePaused ? "Escucha apagada" : "Activar escucha"}
+            </motion.button>
           )}
-          <HoldToTalk
-            active={voice.mode === "listening"}
-            disabled={!profile?.wake_button_enabled}
-            onStart={voice.holdStart}
-            onEnd={voice.holdEnd}
-          />
-          <button
-            onClick={voice.stop}
-            disabled={voice.mode === "idle"}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/70 disabled:opacity-0"
-            aria-label="Parar"
-          >
-            <Square className="h-4 w-4" />
-          </button>
+          <AnimatePresence>
+            {voice.mode !== "idle" && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={voice.stop}
+                className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2.5 text-[13px] text-white/75 hover:bg-white/10"
+                aria-label="Parar"
+              >
+                <Square className="h-3.5 w-3.5" /> Parar
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
+        {voice.mode === "idle" && !pillText && (
+          <p className="-mt-3 text-center text-xs text-white/35">Toca la bolita para hablar{holdEnabled ? " · mantenla pulsada para dictar" : ""}</p>
+        )}
       </div>
 
       <form onSubmit={submit} className="mt-6 flex items-center gap-2 pr-16">

@@ -73,6 +73,9 @@ export async function completeOnboarding(p, { owner, name = "Pancho", assistant 
   await p.waitForSelector("text=Elige mi voz");
   await shot?.(p, `onb2-${tag}`);
   await p.click("text=Continuar");
+  await p.waitForSelector("text=Aprende tu voz");
+  await shot?.(p, `onb2b-${tag}`);
+  await p.click("text=Ahora no");
   await p.waitForSelector("text=Conecta tu mundo");
   await p.click("text=Seleccionar todo");
   await p.waitForSelector("text=Quitar todo");

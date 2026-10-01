@@ -102,7 +102,7 @@ async function geminiSynth(text: string, key: VoiceKey, apiKey: string, signal?:
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: `${def.gemini.style}: ${text}` }] }],
+        contents: [{ role: "user", parts: [{ text }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: def.gemini.voice } } },

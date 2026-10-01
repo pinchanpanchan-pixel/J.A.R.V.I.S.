@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { NotebookPen, Check } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
+import { DictateButton } from "@/components/DictateButton";
 import { useSync } from "@/components/providers/SyncProvider";
 
 export const QUICK_NOTE_EVENT = "jarvis:quick-note";
@@ -83,6 +84,10 @@ export function QuickNoteFab() {
           placeholder="Suelta lo que tengas en la cabeza…"
           className="jv-input resize-none"
         />
+        <div className="mt-2 flex items-start justify-between gap-3">
+          <DictateButton compact onText={(t) => setText((prev) => (prev.trim() ? `${prev.trim()} ${t}` : t))} />
+          <span className="pt-2 text-[11px] text-white/35">Escribe o dicta, como prefieras.</span>
+        </div>
         <button onClick={() => void save()} disabled={!text.trim() && !saved} className="jv-btn-primary mt-3 w-full">
           {saved ? (
             <>

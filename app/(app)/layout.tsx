@@ -11,6 +11,7 @@ import { VoiceProvider } from "@/components/providers/VoiceProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AutomationRunner } from "@/components/providers/AutomationRunner";
 import { WorldMonitorProvider } from "@/components/providers/WorldMonitorProvider";
+import { ProactiveProvider } from "@/components/providers/ProactiveProvider";
 
 function Shell({ children }: { children: ReactNode }) {
   const { profile } = useProfile();
@@ -40,6 +41,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <VoiceProvider>
         <AutomationRunner />
         <WorldMonitorProvider />
+        <ProactiveProvider />
         <Shell>{children}</Shell>
       </VoiceProvider>
     </RequireAuth>

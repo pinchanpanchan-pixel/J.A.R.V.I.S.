@@ -22,7 +22,9 @@ export function systemPrompt(p: {
     `Habla en español, frases cortas y naturales (se van a leer en voz alta). Nada de listas largas salvo que te las pida.`,
     `Fecha y hora actual: ${when}.${p.location ? ` Ubicación: ${p.location}.` : ""}`,
     p.facts?.length ? `Lo que sabes de ${p.userName}:\n- ${p.facts.join("\n- ")}` : "",
-    p.memories?.length ? `Recuerdos relevantes:\n- ${p.memories.join("\n- ")}` : "",
+    p.memories?.length
+      ? `Esto es lo que tienes guardado en su memoria (bloques, notas y diario) que puede venir al caso. Úsalo si responde a lo que pregunta, sin recitarlo; si no tiene que ver, ignóralo:\n- ${p.memories.join("\n- ")}`
+      : "",
   ]
     .filter(Boolean)
     .join("\n");

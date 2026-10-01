@@ -12,6 +12,14 @@ export function getAudioContext(): AudioContext {
 }
 
 let unlocked = false;
+const unlockWaiters = new Set<() => void>();
+/** ¿Ya hubo un gesto que desbloquea el audio? (iOS no deja sonar nada antes). */
+export const isAudioUnlocked = () => unlocked;
+/** Resuelve cuando el audio esté desbloqueado (al primer toque si aún no lo está). */
+export function whenAudioUnlocked(): Promise<void> {
+  if (unlocked) return Promise.resolve();
+  return new Promise((r) => unlockWaiters.add(r));
+}
 /** Llamar en el primer toque/clic: reanuda el contexto y reproduce un silencio (desbloqueo iOS). */
 export async function unlockAudio(): Promise<void> {
   if (unlocked) return;
@@ -24,6 +32,8 @@ export async function unlockAudio(): Promise<void> {
     s.connect(c.destination);
     s.start(0);
     unlocked = true;
+    unlockWaiters.forEach((w) => w());
+    unlockWaiters.clear();
   } catch {
     /* se reintentará en el siguiente gesto */
   }

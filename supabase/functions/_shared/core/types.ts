@@ -30,6 +30,8 @@ export interface UserRow extends BaseRow {
   wake_clap_enabled: boolean;
   wake_button_enabled: boolean;
   wake_word_enabled: boolean;
+  proactive_enabled: boolean;
+  morning_brief_enabled: boolean;
   timezone: string | null;
   locale: string | null;
 }
@@ -108,6 +110,10 @@ export interface VoicePrefsRow extends BaseRow {
   volume: number;
   wake_word: string | null;
   clap_threshold: number;
+  /** Huella de la voz del dueño (vector normalizado; nunca el audio). */
+  voiceprint: number[] | null;
+  voiceprint_threshold: number;
+  owner_voice_only: boolean;
 }
 
 export interface ConnectorTokenRow extends BaseRow {

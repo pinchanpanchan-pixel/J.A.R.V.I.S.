@@ -7,9 +7,9 @@ const { browser, fail, track, shot, finish } = await setup();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
 const a = await login(ctx, track, "pinchan.panchan@gmail.com");
 const o = await completeOnboarding(a, { owner: true, shot });
-if (o.total !== 8) await fail(`el propietario debería tener 8 pasos (sin pago), tiene ${o.total}`);
+if (o.total !== 9) await fail(`el propietario debería tener 9 pasos (sin pago), tiene ${o.total}`);
 if (!o.locationRequired) await fail("la ubicación debe ser obligatoria");
-log("propietario: 8 pasos (salta el pago), ubicación obligatoria");
+log("propietario: 9 pasos (con «Aprende tu voz», salta el pago), ubicación obligatoria");
 await a.waitForSelector("h1:has-text('Friday')");
 await shot(a, "p2-brain");
 log("Cerebro con nombre personalizado (Friday)");
@@ -73,12 +73,12 @@ log("segundo dispositivo: todo sincronizado (incluido el modo flotante), sin rep
 const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
 const c = await login(ctx2, track, "amigo@example.com");
 const u = await completeOnboarding(c, { owner: false, shot });
-if (u.total !== 9) await fail(`usuario normal debería tener 9 pasos, tiene ${u.total}`);
+if (u.total !== 10) await fail(`usuario normal debería tener 10 pasos, tiene ${u.total}`);
 await c.click("a:has-text('Diario')");
 await c.waitForSelector("text=Tu diario privado");
 await c.click("a:has-text('Ajustes')");
 await c.waitForSelector("h2:has-text('Suscripción')");
-log("usuario Free: 9 pasos, diario bloqueado y suscripción visible");
+log("usuario Free: 10 pasos, diario bloqueado y suscripción visible");
 
 await finish();
 console.log("✓ E2E fase 2 OK");

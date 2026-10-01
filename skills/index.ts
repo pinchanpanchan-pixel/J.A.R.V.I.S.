@@ -14,11 +14,12 @@ import { navigation } from "./navigation";
 import { visualMemory } from "./visualMemory";
 import { importPast } from "./importPast";
 import { worldMonitor } from "./worldMonitor";
+import { weather } from "./weather";
 import { matchShortcut, type EffectiveShortcut } from "@/lib/shortcuts";
 
-/** Orden = prioridad. Las tres primeras son las del plan Free. */
-export const SKILLS: Skill[] = [quickNote, memory, navigation, recap, diary, homeControl, music, calendar, email, contacts, notion, visualMemory, importPast, worldMonitor];
-export const FREE_SKILL_IDS = new Set(SKILLS.slice(0, 3).map((s) => s.id));
+/** Orden = prioridad. Las tres primeras (y el tiempo) son las del plan Free. */
+export const SKILLS: Skill[] = [quickNote, memory, navigation, weather, recap, diary, homeControl, music, calendar, email, contacts, notion, visualMemory, importPast, worldMonitor];
+export const FREE_SKILL_IDS = new Set([...SKILLS.slice(0, 3).map((s) => s.id), "weather"]);
 
 const UPSELL: Record<string, string> = {
   sync: "Eso lo hago con Pro, hermano: necesito tu historial sincronizado.",
@@ -81,7 +82,7 @@ async function runSkill(text: string, ctx: SkillContext, only?: Skill): Promise<
 
 /** Router: atajo → skill → (null) cerebro. */
 export async function routeUtterance(text: string, ctx: SkillContext, shortcuts: EffectiveShortcut[]): Promise<SkillResult | null> {
-  const sc = ctx.features.shortcuts ? matchShortcut(text, shortcuts) : null;
+  const sc = ctx.features.shortcuts ? matchShortcut(text, shortcuts, ctx.assistantName) : null;
   if (sc) {
     const r = await runShortcut(sc, ctx);
     if (r) return r;

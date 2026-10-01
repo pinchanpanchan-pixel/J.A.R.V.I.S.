@@ -7,6 +7,7 @@ import { useProfileActions } from "@/hooks/useProfileActions";
 import { useRow } from "@/hooks/useTable";
 import { stableId } from "@/lib/ids";
 import { VoiceSelector } from "@/components/VoiceSelector";
+import { VoiceprintEnroll } from "@/components/VoiceprintEnroll";
 import { ConnectorGrid } from "@/components/ConnectorGrid";
 import { LocationSelector } from "@/components/LocationSelector";
 import { PaymentCard } from "@/components/PaymentCard";
@@ -15,12 +16,17 @@ import { MiniTutorial, ShortcutsTutorial } from "@/components/onboarding/Tutoria
 import { APP_CONNECTORS, HOME_CONNECTORS } from "@/connectors/registry";
 import type { VoiceKey } from "@/types/db";
 
-type StepId = "identity" | "voice" | "apps" | "home" | "location" | "payment" | "diary" | "tutorial" | "shortcuts";
+type StepId = "identity" | "voice" | "voiceprint" | "apps" | "home" | "location" | "payment" | "diary" | "tutorial" | "shortcuts";
 
-/** Numeración de la especificación (Paso 1..9; el 10 es la comprobación de propietario). */
+/**
+ * Numeración de la especificación (Paso 1..9; el 10 es la comprobación de propietario).
+ * `n` es el identificador guardado en users.onboarding_step; el ORDEN lo da el array
+ * («voiceprint», añadido en la v2, usa el 11 para no renumerar a quien ya iba por medias).
+ */
 const ALL_STEPS: Array<{ n: number; id: StepId; title: string; subtitle?: string }> = [
   { n: 1, id: "identity", title: "Empecemos por lo básico" },
   { n: 2, id: "voice", title: "Elige mi voz" },
+  { n: 11, id: "voiceprint", title: "Aprende tu voz", subtitle: "Para responder solo cuando hablas tú." },
   { n: 3, id: "apps", title: "Conecta tu mundo" },
   { n: 4, id: "home", title: "Tu hogar" },
   { n: 5, id: "location", title: "¿Dónde estás, hermano?", subtitle: "Necesito esto para cuidarte." },
@@ -49,10 +55,13 @@ export function OnboardingCard() {
     if (stepN === null && profile) setStepN(Math.max(1, profile.onboarding_step || 1));
   }, [profile, stepN]);
 
-  const idx = Math.max(
-    0,
-    steps.findIndex((s) => s.n >= (stepN ?? 1)),
-  );
+  const idx = useMemo(() => {
+    const n = stepN ?? 1;
+    const exact = steps.findIndex((s) => s.n === n);
+    if (exact >= 0) return exact;
+    // Paso guardado que ya no existe para esta cuenta (p.ej. el pago en un propietario): el siguiente.
+    return Math.max(0, steps.findIndex((s) => s.n <= 10 && s.n >= n));
+  }, [steps, stepN]);
   const step = steps[idx] ?? steps[0];
 
   const go = async (delta: 1 | -1) => {
@@ -107,6 +116,10 @@ export function OnboardingCard() {
           premium={features.premiumVoice}
         />
       );
+      break;
+    case "voiceprint":
+      showContinue = false;
+      body = <VoiceprintEnroll onDone={next} />;
       break;
     case "apps":
       showContinue = true;

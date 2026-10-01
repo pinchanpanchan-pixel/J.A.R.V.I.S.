@@ -8,8 +8,11 @@ export interface VoiceDef {
   envVar: string;
   /** Google Cloud TTS (Chirp 3 HD). rate: velocidad opcional. */
   google: { name: string; rate?: number };
-  /** Gemini TTS: voz prediseñada + indicación de estilo. */
-  gemini: { voice: string; style: string };
+  /**
+   * Gemini TTS: voz prediseñada. Sin indicaciones de estilo en el texto: el modelo a veces
+   * las leía en voz alta. Cada voz ya tiene su timbre propio.
+   */
+  gemini: { voice: string };
   /** Parámetros del respaldo Web Speech API. */
   fallback: { lang: string; pitch: number; rate: number; preferNames: string[] };
   accent: string; // color de la tarjeta
@@ -24,7 +27,7 @@ export const VOICES: VoiceDef[] = [
     description: "El clásico. Elegante y preciso.",
     envVar: "VOICE_BRITISH_ORIGINAL",
     google: { name: "es-ES-Chirp3-HD-Charon" },
-    gemini: { voice: "Charon", style: "Dilo en español, con elegancia serena y precisa, como un mayordomo británico culto" },
+    gemini: { voice: "Charon" },
     fallback: { lang: "en-GB", pitch: 0.9, rate: 1.0, preferNames: ["Daniel", "Arthur", "Google UK English Male", "Oliver"] },
     accent: "#64FFDA",
   },
@@ -34,7 +37,7 @@ export const VOICES: VoiceDef[] = [
     description: "Cercano, con energía.",
     envVar: "VOICE_YOUNG_BROTHER",
     google: { name: "es-US-Chirp3-HD-Puck" },
-    gemini: { voice: "Puck", style: "Dilo en español, joven, cercano y con energía, como un hermano de veintipocos" },
+    gemini: { voice: "Puck" },
     fallback: { lang: "es-ES", pitch: 1.15, rate: 1.08, preferNames: ["Jorge", "Pablo", "Google español"] },
     accent: "#38BDF8",
   },
@@ -44,7 +47,7 @@ export const VOICES: VoiceDef[] = [
     description: "Para la noche. Te baja las pulsaciones.",
     envVar: "VOICE_DEEP_CALM",
     google: { name: "es-ES-Chirp3-HD-Enceladus", rate: 0.92 },
-    gemini: { voice: "Enceladus", style: "Dilo en español, con voz grave, lenta y muy calmada, casi en susurro" },
+    gemini: { voice: "Enceladus" },
     fallback: { lang: "es-ES", pitch: 0.7, rate: 0.9, preferNames: ["Diego", "Juan", "Google español"] },
     accent: "#A78BFA",
   },
@@ -54,7 +57,7 @@ export const VOICES: VoiceDef[] = [
     description: "De aquí. Directo y con cariño.",
     envVar: "VOICE_SPANISH_BROTHER",
     google: { name: "es-ES-Chirp3-HD-Orus" },
-    gemini: { voice: "Orus", style: "Dilo con acento de España, directo, cálido y con cariño de hermano mayor" },
+    gemini: { voice: "Orus" },
     fallback: { lang: "es-ES", pitch: 1.0, rate: 1.0, preferNames: ["Jorge", "Monica", "Google español de España"] },
     accent: "#F5C451",
   },

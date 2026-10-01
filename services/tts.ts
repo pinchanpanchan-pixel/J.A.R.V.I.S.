@@ -80,6 +80,26 @@ function getPlayers(): Player[] {
   return players;
 }
 
+// 20 ms de silencio: sirve para «bendecir» los <audio> en el primer toque (iOS).
+const SILENT_WAV = "data:audio/wav;base64,UklGRmQBAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
+let primed = false;
+/**
+ * iOS solo deja reproducir un <audio> por código si antes sonó dentro de un gesto del usuario.
+ * Se llama en el primer toque: así el saludo y las respuestas posteriores pueden sonar.
+ */
+export function primeTtsPlayers() {
+  if (primed) return;
+  primed = true;
+  for (const p of getPlayers()) {
+    if (p.el.src) continue;
+    p.el.src = SILENT_WAV;
+    p.el
+      .play()
+      .then(() => p.el.pause())
+      .catch(() => (primed = false));
+  }
+}
+
 function ttsUrl(text: string, voice: VoiceKey): string {
   const q = new URLSearchParams({ text, voice });
   if (isMockMode) {

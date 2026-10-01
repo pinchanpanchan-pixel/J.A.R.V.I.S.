@@ -4,7 +4,8 @@ import { buildUsgsUrl, type UsgsFeature, type WeatherSnapshot } from "@/services
 import type { Skill } from "../types";
 
 /**
- * WorldMonitor (skill de voz): «¿ha habido algún terremoto?», «¿qué tiempo hace?», «¿cómo está el aire?».
+ * WorldMonitor (skill de voz): «¿ha habido algún terremoto?», «¿cómo está el aire?».
+ * (El tiempo lo responde la skill «weather», con Open-Meteo y sin clave.)
  * La vigilancia proactiva (alertas) la hace components/providers/WorldMonitorProvider + Edge Function.
  */
 export const worldMonitor: Skill = {
@@ -15,7 +16,6 @@ export const worldMonitor: Skill = {
   requires: "worldMonitor",
   match(t) {
     if (/\b(terremotos?|sismos?|temblor(es)?)\b/.test(t)) return { mode: "quakes" };
-    if (/\b(que tiempo hace|va a llover|hace (frio|calor)|el tiempo)\b/.test(t)) return { mode: "weather" };
     if (/\b(calidad del aire|contaminacion|como esta el aire)\b/.test(t)) return { mode: "air" };
     return null;
   },
