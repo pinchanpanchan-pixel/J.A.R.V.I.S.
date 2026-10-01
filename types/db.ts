@@ -318,4 +318,7 @@ export const CLIENT_STRIPPED_COLUMNS: Partial<Record<TableName, string[]>> = {
     "subscription_renews_at",
     "stripe_customer_id",
   ],
+  // Los tokens, la cuenta («Conectado como…») y el usuario del puente Hue los escribe solo el
+  // servidor: un dispositivo con datos viejos nunca puede pisarlos.
+  connectors_tokens: ["access_token_ciphertext", "refresh_token_ciphertext", "expires_at", "metadata"],
 };

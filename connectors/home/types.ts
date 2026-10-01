@@ -20,7 +20,7 @@ export interface HomeAdapterContext {
 
 export interface HomeCommandResult {
   ok: boolean;
-  /** Para HomeKit: el cliente debe abrir este Atajo de iOS. */
+  /** Si el cliente debe abrir algo (p. ej. un Atajo de iOS). */
   openUrl?: string;
   error?: string;
 }

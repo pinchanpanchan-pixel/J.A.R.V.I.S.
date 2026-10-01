@@ -8,13 +8,14 @@ import type { ConnectorTokenRow } from "@/types/db";
 export type ConnectorKind = "app" | "home";
 
 /**
- *  oauth         — OAuth estándar (Google, Notion, Spotify…)
- *  ios_shortcut  — Apps de Apple vía Atajos de iOS (una PWA no tiene acceso directo)
- *  import        — Importación de archivos (WhatsApp, fotos)
- *  api_key       — Clave/token del usuario (Govee, Hue local…)
- *  native_only   — Requiere la futura app nativa
+ *  oauth         — Inicio de sesión real con la app (Google, Spotify, Notion, Microsoft…)
+ *  ios_shortcut  — Apps de Apple vía un Atajo de iOS ya hecho (una web no tiene acceso directo)
+ *  import        — No es una cuenta: subes tú los archivos (fotos, chats de WhatsApp)
+ *  api_key       — Clave que da la app del fabricante (Govee, Tuya)
+ *  link          — No necesita cuenta: J.A.R.V.I.S. abre la app (Google Maps)
+ *  unavailable   — El fabricante aún no deja conectarse desde una web (Alexa, Google Home)
  */
-export type AuthMethod = "oauth" | "ios_shortcut" | "import" | "api_key" | "native_only";
+export type AuthMethod = "oauth" | "ios_shortcut" | "import" | "api_key" | "link" | "unavailable";
 
 export interface ConnectorMeta {
   id: string;
@@ -22,11 +23,20 @@ export interface ConnectorMeta {
   kind: ConnectorKind;
   auth: AuthMethod;
   color: string;
-  glyph: string; // letra/símbolo del logo
+  glyph: string; // letra/símbolo de respaldo si no hay logo
+  /** Qué podrá hacer J.A.R.V.I.S. con ella (se ve en la ficha de la app). */
   description: string;
   scopes?: string[];
-  /** Explicación cuando la integración tiene limitaciones en iOS/PWA. */
+  /** Explicación cuando la integración tiene limitaciones (se ve en la ficha, no en la rejilla). */
   note?: string;
+  /** Cuenta OAuth compartida (todas las apps de Google usan «google»; Outlook y OneDrive, «microsoft»). */
+  account?: "google" | "microsoft";
+  /** Palabras extra para el buscador. */
+  keywords?: string[];
+  /** Campos de la clave (api_key). */
+  keyFields?: Array<{ id: string; label: string; placeholder?: string; secret?: boolean; options?: Array<{ value: string; label: string }> }>;
+  /** Dónde se consigue la clave / cómo se hace (api_key). */
+  keyHelp?: string;
 }
 
 export interface ConnectorContext {

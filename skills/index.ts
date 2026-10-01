@@ -15,11 +15,13 @@ import { visualMemory } from "./visualMemory";
 import { importPast } from "./importPast";
 import { worldMonitor } from "./worldMonitor";
 import { weather } from "./weather";
+import { apps } from "./apps";
 import { matchShortcut, type EffectiveShortcut } from "@/lib/shortcuts";
 
-/** Orden = prioridad. Las tres primeras (y el tiempo) son las del plan Free. */
-export const SKILLS: Skill[] = [quickNote, memory, navigation, weather, recap, diary, homeControl, music, calendar, email, contacts, notion, visualMemory, importPast, worldMonitor];
-export const FREE_SKILL_IDS = new Set([...SKILLS.slice(0, 3).map((s) => s.id), "weather"]);
+/** Orden = prioridad. Las tres primeras (más el tiempo y Maps/YouTube) son las del plan Free. */
+export const SKILLS: Skill[] = [quickNote, memory, navigation, weather, recap, diary, homeControl, apps, music, calendar, email, contacts, notion, visualMemory, importPast, worldMonitor];
+// El tiempo y las apps sin cuenta (Maps, YouTube) también son del plan Free; las que piden cuenta se limitan dentro.
+export const FREE_SKILL_IDS = new Set([...SKILLS.slice(0, 3).map((s) => s.id), "weather", "apps"]);
 
 const UPSELL: Record<string, string> = {
   sync: "Eso lo hago con Pro, hermano: necesito tu historial sincronizado.",

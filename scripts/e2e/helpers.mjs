@@ -80,8 +80,11 @@ export async function completeOnboarding(p, { owner, name = "Pancho", assistant 
   await shot?.(p, `onb2b-${tag}`);
   await p.click("text=Ahora no");
   await p.waitForSelector("text=Conecta tu mundo");
-  await p.click("text=Seleccionar todo");
-  await p.waitForSelector("text=Quitar todo");
+  // v2: cada app se conecta con su inicio de sesión (en modo simulado, conexión de prueba)
+  await p.click('[data-testid="connector-spotify"]');
+  await p.click("button:has-text('Iniciar sesión con Spotify')");
+  await p.waitForSelector('[role="dialog"] >> text=/Conectado como .*\(prueba\)/');
+  await p.click('[role="dialog"][aria-label="Spotify"] button[aria-label="Cerrar"]');
   await shot?.(p, `onb3-${tag}`);
   await p.click("text=Continuar");
   await p.waitForSelector("text=Tu hogar");

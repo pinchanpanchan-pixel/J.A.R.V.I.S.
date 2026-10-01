@@ -123,10 +123,10 @@ export function OnboardingCard() {
       break;
     case "apps":
       showContinue = true;
-      body = <ConnectorGrid connectors={APP_CONNECTORS} onSkip={next} />;
+      body = <ConnectorGrid connectors={APP_CONNECTORS} onSkip={next} returnTo="/" inOnboarding />;
       break;
     case "home":
-      body = <ConnectorGrid connectors={HOME_CONNECTORS} onSkip={next} />;
+      body = <ConnectorGrid connectors={HOME_CONNECTORS} onSkip={next} returnTo="/" inOnboarding />;
       break;
     case "location":
       canContinue = !!location;

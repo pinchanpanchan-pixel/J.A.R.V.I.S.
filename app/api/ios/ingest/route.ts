@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rateLimit";
+import { stableId } from "@/lib/ids";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ const Body = z.object({
   items: z.array(Item).min(1).max(500),
 });
 
+const APPLE_APP: Record<string, string> = { note: "apple_notes", reminder: "apple_reminders", contact: "apple_contacts", event: "apple_calendar" };
 const TAG: Record<string, string> = { note: "apple-notes", reminder: "recordatorio", contact: "contacto", event: "agenda", text: "atajo" };
 
 /**
@@ -49,6 +51,25 @@ export async function POST(req: Request) {
   });
   const { error } = await admin.from("memory_blocks").insert(rows);
   if (error) return NextResponse.json({ error: "save_failed" }, { status: 500 });
-  await admin.from("connectors_tokens").update({ last_synced_at: new Date().toISOString() }).eq("user_id", conn.user_id).eq("provider", "ios_shortcuts");
+  const now = new Date().toISOString();
+  await admin.from("connectors_tokens").update({ last_synced_at: now }).eq("user_id", conn.user_id).eq("provider", "ios_shortcuts");
+  // La app de Apple correspondiente aparece como «Conectado» en la rejilla de apps.
+  const apple = APPLE_APP[parsed.data.type];
+  if (apple) {
+    await admin.from("connectors_tokens").upsert(
+      {
+        id: stableId(conn.user_id, "connector", apple),
+        user_id: conn.user_id,
+        provider: apple,
+        kind: "app",
+        enabled: true,
+        status: "connected",
+        metadata: { account: "tu iPhone (Atajo)" },
+        last_synced_at: now,
+        updated_at: now,
+      },
+      { onConflict: "id" },
+    );
+  }
   return NextResponse.json({ ok: true, saved: rows.length });
 }

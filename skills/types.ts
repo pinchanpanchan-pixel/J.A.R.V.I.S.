@@ -21,6 +21,8 @@ export interface SkillContext {
 export interface SkillResult {
   reply: string;
   navigate?: string;
+  /** Enlace externo que abrir (ruta de Maps, vídeo de YouTube, documento…). */
+  openUrl?: string;
 }
 
 export interface Skill {

@@ -18,14 +18,13 @@ import { ShortcutsManager } from "@/components/settings/ShortcutsManager";
 import { WorldMonitorSettings } from "@/components/settings/WorldMonitorSettings";
 import { WhatsAppImport } from "@/components/settings/WhatsAppImport";
 import { enablePush } from "@/lib/push";
-import { IosShortcuts } from "@/components/settings/IosShortcuts";
 import { DiscountCodesAdmin } from "@/components/settings/DiscountCodesAdmin";
 import { PLAN_LABELS } from "@/lib/plans";
 import { useProfile } from "@/hooks/useProfile";
 import { useProfileActions } from "@/hooks/useProfileActions";
 import { useRow } from "@/hooks/useTable";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { APP_CONNECTORS, HOME_CONNECTORS } from "@/connectors/registry";
+import { APP_CONNECTORS, HOME_COMPATIBLE, HOME_CONNECTORS } from "@/connectors/registry";
 import { stableId } from "@/lib/ids";
 import { isMockMode } from "@/lib/env";
 import type { VoiceKey } from "@/types/db";
@@ -165,11 +164,7 @@ export default function SettingsPage() {
         <ConnectorGrid connectors={APP_CONNECTORS} maxEnabled={features.maxConnectors} locked={!features.connectors} />
       </Section>
 
-      <Section id="atajos-ios" title="Apps de Apple (Atajos de iOS)" description="Notas, Recordatorios, Contactos y Calendario de Apple llegan a tu memoria con un Atajo.">
-        <IosShortcuts />
-      </Section>
-
-      <Section id="hogar" title="Hogar inteligente">
+      <Section id="hogar" title="Hogar inteligente" description={`Compatible con: ${HOME_COMPATIBLE.join(", ")}.`}>
         <ConnectorGrid connectors={HOME_CONNECTORS} locked={!features.smartHome} />
       </Section>
 

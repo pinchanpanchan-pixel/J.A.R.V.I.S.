@@ -16,6 +16,16 @@ export interface AssistantReply {
   reply: string;
   via: "skill" | "brain";
   navigate?: string;
+  openUrl?: string;
+}
+
+/** Abre un enlace externo (nueva pestaña; si el navegador lo bloquea, en esta misma). */
+function openExternal(url: string) {
+  if (!/^https:\/\//.test(url)) return;
+  // Ojo: con "noopener" window.open devuelve null siempre; se corta el opener a mano.
+  const w = window.open(url, "_blank");
+  if (w) w.opener = null;
+  else window.location.href = url;
 }
 
 /**
@@ -60,7 +70,8 @@ export function useAssistant() {
         if (r) {
           if (r.reply) await engine.insert("chat_messages", { role: "assistant", content: r.reply, provider: "skill", metadata: {} });
           if (r.navigate) router.push(r.navigate);
-          return { reply: r.reply, via: "skill", navigate: r.navigate };
+          if (r.openUrl) openExternal(r.openUrl);
+          return { reply: r.reply, via: "skill", navigate: r.navigate, openUrl: r.openUrl };
         }
         const res = await brain.send(message, { source: opts.source, skipUserInsert: true });
         return res ? { reply: res.reply, via: "brain" } : null;

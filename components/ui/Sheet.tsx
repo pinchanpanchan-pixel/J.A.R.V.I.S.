@@ -1,9 +1,14 @@
 "use client";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
-/** Hoja inferior (estilo iOS) / modal centrado en pantallas grandes. */
+/**
+ * Hoja inferior (estilo iOS) / modal centrado en pantallas grandes.
+ * Se pinta en <body> (portal): así nunca queda recortada ni por debajo de otra tarjeta
+ * aunque se abra desde dentro del onboarding o de una sección con transformaciones.
+ */
 export function Sheet({
   open,
   onClose,
@@ -22,11 +27,17 @@ export function Sheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
+          className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -53,6 +64,7 @@ export function Sheet({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

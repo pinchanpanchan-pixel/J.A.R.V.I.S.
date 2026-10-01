@@ -35,21 +35,6 @@ export function useProfileActions() {
     [engine, uid],
   );
 
-  const setConnector = useCallback(
-    async (meta: ConnectorMeta, enabled: boolean) => {
-      if (!engine || !uid) return;
-      await engine.upsert("connectors_tokens", stableId(uid, "connector", meta.id), {
-        provider: meta.id,
-        kind: meta.kind,
-        enabled,
-        status: enabled ? (isMockMode ? "mock" : "pending") : "disconnected",
-        scopes: meta.scopes ?? [],
-        metadata: { auth: meta.auth },
-      });
-    },
-    [engine, uid],
-  );
-
   const saveLocation = useCallback(
     async (place: ResolvedPlace, method: UserLocationRow["method"], extra: Partial<UserLocationRow> = {}) => {
       if (!engine || !uid) return;
@@ -69,5 +54,5 @@ export function useProfileActions() {
     [engine, uid],
   );
 
-  return { updateProfile, updateCore, updateVoice, setConnector, saveLocation };
+  return { updateProfile, updateCore, updateVoice, saveLocation };
 }

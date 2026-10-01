@@ -32,6 +32,8 @@ export const publicEnv = {
   appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "",
   vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
+  /** Enlace de iCloud del Atajo «J.A.R.V.I.S.» para las apps de Apple (docs/IOS_SHORTCUT.md). */
+  iosShortcutUrl: process.env.NEXT_PUBLIC_IOS_SHORTCUT_URL ?? "",
   mockMode: computeMockMode(),
 } as const;
 
