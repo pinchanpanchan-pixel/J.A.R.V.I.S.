@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Pin, Plus, Search, Trash2, X } from "lucide-react";
 import { MemoryCard, formatWhen } from "@/components/MemoryCard";
 import { PhotoCapture } from "@/components/PhotoCapture";
+import { openQuickNote } from "@/components/QuickNote";
 import { Segmented } from "@/components/ui/Segmented";
 import { Sheet } from "@/components/ui/Sheet";
 import { byCreatedDesc, useTable } from "@/hooks/useTable";
@@ -84,6 +85,7 @@ function MemoriesInner() {
   const { features } = useProfile();
   const { rows: blocks } = useTable("memory_blocks", { sort: byCreatedDesc });
   const { rows: notes } = useTable("quick_notes", { sort: byCreatedDesc });
+  const { rows: diary } = useTable("diary_entries");
 
   useEffect(() => {
     if (params.get("tab") === "notes") setTab("notes");
@@ -107,16 +109,26 @@ function MemoriesInner() {
 
   return (
     <div className="flex flex-col gap-4 pt-2">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Memorias</h1>
-        {tab === "blocks" && (
-          <div className="flex gap-2">
-            <PhotoCapture autoOpen={params.get("photo") === "1"} />
-          <button onClick={() => setEditing("new")} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-arc" aria-label="Nuevo bloque">
+      {/* Altura fija y siempre con acciones: la cabecera ya no salta al cambiar de pestaña */}
+      <header className="flex min-h-[56px] items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">Memorias</h1>
+          <p className="truncate text-xs text-white/40" data-testid="memory-summary">
+            Recuerdo {blocks.length} {blocks.length === 1 ? "bloque" : "bloques"}, {notes.length} {notes.length === 1 ? "nota" : "notas"} y {diary.length}{" "}
+            {diary.length === 1 ? "día de diario" : "días de diario"}
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <PhotoCapture autoOpen={params.get("photo") === "1"} />
+          <button
+            onClick={() => (tab === "blocks" ? setEditing("new") : openQuickNote())}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-arc"
+            aria-label={tab === "blocks" ? "Nuevo bloque" : "Nueva nota"}
+            title={tab === "blocks" ? "Nuevo bloque" : "Nueva nota"}
+          >
             <Plus className="h-5 w-5" />
           </button>
-          </div>
-        )}
+        </div>
       </header>
       <Segmented<Tab>
         id="mem-tab"

@@ -92,7 +92,7 @@ export function PhotoCapture({ autoOpen = false }: { autoOpen?: boolean }) {
 
   return (
     <>
-      <button onClick={() => input.current?.click()} disabled={busy} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-arc" aria-label="Memoria visual: añadir foto">
+      <button onClick={() => input.current?.click()} disabled={busy} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-arc" aria-label="Memoria visual: añadir foto" title="Añadir foto (la recuerdo por ti)">
         {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
       </button>
       <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && void handle(e.target.files[0])} aria-label="Foto" data-testid="photo-input" />

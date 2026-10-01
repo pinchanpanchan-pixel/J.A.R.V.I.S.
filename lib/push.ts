@@ -26,3 +26,11 @@ export async function enablePush(): Promise<PushResult> {
   const res = await apiFetch("/api/push/subscribe", { method: "POST", body: JSON.stringify(sub.toJSON()) });
   return res.ok ? "enabled" : "local_only";
 }
+
+/** Estado actual de las notificaciones en este dispositivo (sin preguntar nada). */
+export async function pushStatus(): Promise<"enabled" | "denied" | "default" | "unsupported"> {
+  if (typeof Notification === "undefined" || !("serviceWorker" in navigator)) return "unsupported";
+  if (Notification.permission === "denied") return "denied";
+  if (Notification.permission !== "granted") return "default";
+  return "enabled";
+}

@@ -1,6 +1,6 @@
 // E2E v2 · Fase 3: login con código de 6 dígitos (sin Apple), «Cómo funciono» desde Ajustes
 // y API de propietario protegida en el servidor.
-import { BASE, log, setup, completeOnboarding } from "./helpers.mjs";
+import { BASE, log, setup, completeOnboarding, settings } from "./helpers.mjs";
 
 const { browser, track, fail, shot, finish } = await setup();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
@@ -25,11 +25,11 @@ await p.waitForURL((u) => u.pathname === "/", { timeout: 15000 });
 log("código correcto (6 dígitos) → dentro, sin salir de la app");
 
 await completeOnboarding(p, { owner: true });
-await p.click("a:has-text('Ajustes')");
-await p.waitForSelector("text=Proveedores de IA");
+await settings(p, "ia");
 await p.click('button[aria-label="Probar el cerebro"]');
 await p.waitForSelector("text=/Cerebro simulado|Gemini|Claude/", { timeout: 15000 });
 log("propietario: Proveedores de IA con orden de proveedores y prueba en directo");
+await settings(p, "ayuda");
 await p.click("button:has-text('Cómo funciono')");
 await p.waitForSelector('[role="dialog"] >> text=El punto que respira');
 await p.keyboard.press("Escape");

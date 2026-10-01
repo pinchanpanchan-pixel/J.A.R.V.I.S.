@@ -1,4 +1,5 @@
 "use client";
+import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Crosshair, Link2, Loader2, MapPin, PenLine } from "lucide-react";
@@ -198,39 +199,18 @@ export function LocationSelector({
 
           {method === "manual" && (
             <div className="flex flex-col gap-2.5">
-              <select className="jv-input" value={country} onChange={(e) => setCountry(e.target.value)} aria-label="País">
-                <option value="">País</option>
-                {countries.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <GlassSelect ariaLabel="País" placeholder="País" value={country || null} onChange={setCountry} options={countries.map((c) => ({ value: c.code, label: c.name }))} />
               {country &&
                 (states === null ? (
                   <div className="jv-input text-white/40">Cargando…</div>
                 ) : states.length > 0 ? (
-                  <select className="jv-input" value={state} onChange={(e) => setState(e.target.value)} aria-label="Estado o departamento">
-                    <option value="">Estado / Departamento</option>
-                    {states.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                  <GlassSelect ariaLabel="Estado o departamento" placeholder="Estado / Departamento" value={state || null} onChange={setState} options={states.map((s) => ({ value: s, label: s }))} />
                 ) : (
                   <input className="jv-input" placeholder="Estado / Departamento" value={state} onChange={(e) => setState(e.target.value)} />
                 ))}
               {country &&
                 (state && cities && cities.length > 0 ? (
-                  <select className="jv-input" value={city} onChange={(e) => setCity(e.target.value)} aria-label="Ciudad o municipio">
-                    <option value="">Ciudad / Municipio</option>
-                    {cities.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+                  <GlassSelect ariaLabel="Ciudad o municipio" placeholder="Ciudad / Municipio" value={city || null} onChange={setCity} options={cities.map((c) => ({ value: c, label: c }))} />
                 ) : (
                   <input className="jv-input" placeholder="Ciudad / Municipio" value={city} onChange={(e) => setCity(e.target.value)} />
                 ))}

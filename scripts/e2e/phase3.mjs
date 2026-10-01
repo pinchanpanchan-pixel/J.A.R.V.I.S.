@@ -3,7 +3,7 @@
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { BASE, log, setup, login, completeOnboarding } from "./helpers.mjs";
+import { BASE, log, setup, login, completeOnboarding, settings } from "./helpers.mjs";
 
 const fx = (f) => path.resolve("scripts/e2e/fixtures", f);
 if (!existsSync(fx("claps.wav"))) execSync("python3 scripts/e2e/make_fixtures.py");
@@ -29,7 +29,7 @@ const waitMode = (p, m, timeout = 15000) => p.waitForSelector(`canvas[data-mode=
   await p.waitForTimeout(4000);
   if ((await dotMode(p)) === "listening") await fail("se activó sin palmadas ni palabra (ruido)");
   log("palmadas apagadas de serie: el ruido no activa");
-  await p.click("a:has-text('Ajustes')");
+  await settings(p, "activacion");
   await p.click('button[role="switch"][aria-label="Doble palmada"]');
   await p.waitForSelector("text=Sensibilidad de las palmadas");
   await p.click("a:has-text('Cerebro')");
@@ -116,7 +116,7 @@ const waitMode = (p, m, timeout = 15000) => p.waitForSelector(`canvas[data-mode=
   log("mensaje de voz guardado en la conversación");
 
   // Vista previa de voces en Ajustes (ElevenLabs)
-  await p.click("a:has-text('Ajustes')");
+  await settings(p, "voz");
   const before = ttsReqs.length;
   await p.click('button[aria-label="Escuchar Hermano joven"]');
   await p.waitForTimeout(800);

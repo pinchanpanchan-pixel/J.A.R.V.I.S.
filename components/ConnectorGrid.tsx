@@ -1,4 +1,5 @@
 "use client";
+import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -279,13 +280,13 @@ function ConnectorSheet({
             {connected && <p className="text-xs text-white/45">Para cambiar la clave, escribe la nueva y vuelve a conectar.</p>}
             {(meta.keyFields ?? []).map((f) =>
               f.options ? (
-                <select key={f.id} className="jv-input" value={fields[f.id] ?? ""} onChange={(e) => setFields((p) => ({ ...p, [f.id]: e.target.value }))} aria-label={f.label}>
-                  {f.options.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {f.label}: {o.label}
-                    </option>
-                  ))}
-                </select>
+                <GlassSelect
+                  key={f.id}
+                  ariaLabel={f.label}
+                  value={fields[f.id] ?? null}
+                  onChange={(v) => setFields((p) => ({ ...p, [f.id]: v }))}
+                  options={f.options.map((o) => ({ value: o.value, label: `${f.label}: ${o.label}` }))}
+                />
               ) : (
                 <input
                   key={f.id}
@@ -334,7 +335,7 @@ function ConnectorSheet({
             <button
               onClick={() => {
                 onClose();
-                router.push(meta.id === "photos" ? "/memories?photo=1" : "/settings#importar");
+                router.push(meta.id === "photos" ? "/memories?photo=1" : "/settings?s=importar");
               }}
               className="jv-btn-primary"
             >

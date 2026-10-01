@@ -1,4 +1,5 @@
 "use client";
+import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
@@ -127,13 +128,21 @@ export function DiscountCodesAdmin() {
             <input className="jv-input w-44 [color-scheme:dark]" type="date" value={form.valid_until} onChange={(e) => setForm({ ...form, valid_until: e.target.value })} aria-label="Válido hasta" />
           </label>
           {Number(form.percent_off) < 100 && (
-            <label className="flex items-center justify-between gap-3 text-sm">
+            <div className="flex items-center justify-between gap-3 text-sm">
               <span className="text-white/70">Duración</span>
-              <select className="jv-input w-44" value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} aria-label="Duración">
-                <option value="forever">Siempre</option>
-                <option value="once">Solo el primer pago</option>
-              </select>
-            </label>
+              <div className="w-48">
+                <GlassSelect
+                  size="sm"
+                  ariaLabel="Duración"
+                  value={form.duration}
+                  onChange={(v) => setForm({ ...form, duration: v })}
+                  options={[
+                    { value: "forever", label: "Siempre" },
+                    { value: "once", label: "Solo el primer pago" },
+                  ]}
+                />
+              </div>
+            </div>
           )}
           {Number(form.percent_off) === 100 && <p className="text-xs text-gold">Un código del 100 % da acceso Pro de por vida sin pasar por el pago.</p>}
           {error && <p className="text-xs text-red-300">{error}</p>}

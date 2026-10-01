@@ -3,7 +3,8 @@ import { Suspense, useMemo, useState } from "react";
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Calendar, Lock, PenLine, Search, X } from "lucide-react";
-import { DiaryTimeline, EMOTION_EMOJI } from "@/components/DiaryTimeline";
+import { DiaryTimeline, SENTIMENT_LEGEND } from "@/components/DiaryTimeline";
+import type { DiaryEntryRow } from "@/types/db";
 import { Sheet } from "@/components/ui/Sheet";
 import { useTable } from "@/hooks/useTable";
 import { useProfile } from "@/hooks/useProfile";
@@ -27,6 +28,21 @@ function DiaryInner() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputMode, setInputMode] = useState<"text" | "voice">("text");
+  /** Entrada que se está editando (null = una nueva de hoy). */
+  const [editing, setEditing] = useState<DiaryEntryRow | null>(null);
+  const startEdit = (e: DiaryEntryRow, plain: string) => {
+    setEditing(e);
+    setText(plain);
+    setInputMode(e.input_mode);
+    setWriting(true);
+  };
+  const closeWriter = () => {
+    setWriting(false);
+    if (editing) {
+      setEditing(null);
+      setText("");
+    }
+  };
   const params = useSearchParams();
   useEffect(() => {
     if (params.get("write") === "1") setWriting(true);
@@ -50,8 +66,7 @@ function DiaryInner() {
         method: "POST",
         body: JSON.stringify({ text: text.trim(), userName, keys }),
       });
-      await engine.insert("diary_entries", {
-        entry_date: localDate(),
+      const data = {
         content_ciphertext: ciphertext,
         summary: analysis.summary,
         sentiment: analysis.sentiment,
@@ -60,9 +75,12 @@ function DiaryInner() {
         thoughts: analysis.thoughts,
         tags: analysis.tags,
         input_mode: inputMode,
-        audio_path: null,
-      });
+      };
+      // Editar vuelve a analizar el texto nuevo; la fecha de la entrada no cambia.
+      if (editing) await engine.update("diary_entries", editing.id, data);
+      else await engine.insert("diary_entries", { ...data, entry_date: localDate(), audio_path: null });
       setText("");
+      setEditing(null);
       setWriting(false);
     } catch {
       setError("Necesito conexión para cifrar tu diario. Tu texto sigue aquí.");
@@ -120,19 +138,30 @@ function DiaryInner() {
               onClick={() => setEmotion(emotion === m ? null : m)}
               className={`shrink-0 rounded-full px-3 py-1.5 text-xs ${emotion === m ? "bg-arc font-semibold text-navy-900" : "bg-white/[0.06] text-white/70"}`}
             >
-              {EMOTION_EMOJI[m] ?? "•"} {m}
+              {m}
             </button>
           ))}
         </div>
       )}
 
+      {rows.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-white/45" aria-label="Qué significa el punto de color">
+          <span>El punto es tu ánimo del día:</span>
+          {SENTIMENT_LEGEND.map((l) => (
+            <span key={l.label} className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full" style={{ background: l.color }} /> {l.label}
+            </span>
+          ))}
+          <span className="text-white/30">· Desliza una entrada a la izquierda para eliminarla.</span>
+        </div>
+      )}
       {filtered.length === 0 ? (
         <p className="py-16 text-center text-sm text-white/40">{rows.length ? "Nada con esos filtros." : `Aún no hay entradas. Cuéntame cómo fue hoy, ${userName}.`}</p>
       ) : (
-        <DiaryTimeline entries={filtered} />
+        <DiaryTimeline entries={filtered} onEdit={startEdit} />
       )}
 
-      <Sheet open={writing} onClose={() => setWriting(false)} title={`Hermano, ¿cómo fue hoy?`}>
+      <Sheet open={writing} onClose={closeWriter} title={editing ? "Editar entrada" : `Hermano, ¿cómo fue hoy?`}>
         <textarea className="jv-input min-h-[200px] resize-y" placeholder="Cuéntamelo todo. Solo lo vamos a saber tú y yo." value={text} onChange={(e) => setText(e.target.value)} autoFocus />
         <div className="mt-2 flex items-center justify-between">
           <DictateButton
@@ -145,7 +174,7 @@ function DiaryInner() {
         </div>
         {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
         <button onClick={() => void save()} disabled={saving || !text.trim()} className="jv-btn-primary mt-3 w-full">
-          <Lock className="h-4 w-4" /> Guardar cifrado
+          <Lock className="h-4 w-4" /> {editing ? "Guardar cambios" : "Guardar cifrado"}
         </button>
       </Sheet>
     </div>

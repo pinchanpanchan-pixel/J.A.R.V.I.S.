@@ -9,6 +9,8 @@ import { useRow, useTable } from "@/hooks/useTable";
 import { stableId } from "@/lib/ids";
 import { checkWorld } from "@/services/worldMonitorClient";
 import { SAFETY_TIPS } from "@/services/worldMonitorService";
+import { emergencyNumber } from "@/lib/emergency";
+import { JARVIS_EVENTS } from "@/lib/events";
 import { playAlert } from "@/services/audio/sounds";
 import { Sheet } from "@/components/ui/Sheet";
 import type { WorldAlertRow } from "@/types/db";
@@ -30,6 +32,18 @@ export function WorldMonitorProvider() {
   const location = useRow("user_locations", user ? stableId(user.id, "primary-location") : null);
   const { rows: alerts } = useTable("world_alerts", { sort: (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) });
   const [tipsFor, setTipsFor] = useState<WorldAlertRow | null>(null);
+  /** Simulacro en curso (solo local). */
+  const [drill, setDrill] = useState<WorldAlertRow | null>(null);
+  useEffect(() => {
+    const onDrill = (e: Event) => {
+      const d = (e as CustomEvent<Partial<WorldAlertRow>>).detail;
+      const now = new Date().toISOString();
+      setDrill({ id: `drill-${Date.now()}`, user_id: user?.id ?? "", external_id: null, acknowledged: false, created_at: now, updated_at: now, ...d } as WorldAlertRow);
+    };
+    window.addEventListener(JARVIS_EVENTS.drill, onDrill);
+    return () => window.removeEventListener(JARVIS_EVENTS.drill, onDrill);
+  }, [user?.id]);
+  const emergency = emergencyNumber(location?.country, location?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
   const announced = useRef(new Set<string>());
   const stopSound = useRef<(() => void) | null>(null);
   const lastWeather = useRef(0);
@@ -62,7 +76,7 @@ export function WorldMonitorProvider() {
     };
   }, [engine, ready, user, userName, features.worldMonitor, location, settings?.check_interval_minutes, onboarded]);
 
-  const active = !onboarded ? null : alerts.find((a) => !a.acknowledged && Date.now() - Date.parse(a.created_at) < FRESH_MS) ?? null;
+  const active = drill ?? (!onboarded ? null : (alerts.find((a) => !a.acknowledged && Date.now() - Date.parse(a.created_at) < FRESH_MS) ?? null));
 
   // Anuncio: sonido fuerte + voz (J.A.R.V.I.S. interrumpe lo que estés haciendo)
   useEffect(() => {
@@ -86,6 +100,13 @@ export function WorldMonitorProvider() {
     if (pendingAnnounce.current === a.id) pendingAnnounce.current = null;
     stopSound.current?.();
     stopSound.current = null;
+    if (a.id.startsWith("drill-")) {
+      // Simulacro: no se guarda nada
+      setDrill(null);
+      if (needHelp) setTipsFor(a);
+      else void voice.speak("Simulacro terminado. Sigo vigilando, hermano.");
+      return;
+    }
     await engine?.update("world_alerts", a.id, { acknowledged: true, data: { ...a.data, response: needHelp ? "help" : "ok", responded_at: new Date().toISOString() } });
     if (needHelp) setTipsFor(a);
     else void voice.speak("Me alegro, hermano. Sigo vigilando.");
@@ -150,10 +171,10 @@ export function WorldMonitorProvider() {
                 <li key={t}>{t}</li>
               ))}
             </ol>
-            <a href="tel:112" className="jv-btn bg-alert text-white">
-              <Phone className="h-5 w-5" /> Llamar a emergencias (112)
+            <a href={`tel:${emergency.number}`} className="jv-btn bg-alert text-white" data-testid="emergency-call">
+              <Phone className="h-5 w-5" /> {emergency.label}
             </a>
-            <p className="text-center text-[11px] text-white/40">En EE. UU. y parte de América: 911.</p>
+            <p className="text-center text-[11px] text-white/40">Número de tu país según tu ubicación. Si estás de viaje, el 112 también suele funcionar desde el móvil.</p>
           </div>
         )}
       </Sheet>

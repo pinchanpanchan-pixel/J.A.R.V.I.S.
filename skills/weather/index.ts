@@ -20,7 +20,7 @@ export const weather: Skill = {
   },
   async execute(ctx, raw, m) {
     const loc = await ctx.engine.get("user_locations", stableId(ctx.userId, "primary-location"));
-    if (!loc) return { reply: "Necesito saber dónde estás, hermano. Configúralo en Ajustes → Ubicación.", navigate: "/settings" };
+    if (!loc) return { reply: "Necesito saber dónde estás, hermano. Configúralo en Ajustes → Ubicación.", navigate: "/settings?s=ubicacion" };
     const f = await fetchForecast(loc.lat, loc.lng, Number(m.day) || 0);
     if (!f) return { reply: "Ahora mismo no me llega la previsión, hermano. Pruébame en un rato." };
     const place = loc.city ?? loc.formatted_address ?? null;

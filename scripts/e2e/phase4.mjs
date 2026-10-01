@@ -2,7 +2,7 @@
 // diario con análisis, hogar y WorldMonitor (USGS interceptado con un sismo cerca de Madrid).
 import JSZip from "jszip";
 import { readFileSync } from "node:fs";
-import { BASE, log, setup, login, completeOnboarding } from "./helpers.mjs";
+import { BASE, log, setup, login, completeOnboarding, settings } from "./helpers.mjs";
 
 const { browser, fail, track, shot, finish } = await setup({ args: ["--autoplay-policy=no-user-gesture-required"] });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
@@ -61,9 +61,10 @@ await pill("/23:00/");
 log("hogar: «apaga todas las luces» y automatización «a las 11pm»");
 
 // Atajo personalizado
-await a.click("a:has-text('Ajustes')");
+await settings(a, "atajos");
 await a.fill('input[placeholder^="Cuando diga"]', "modo cine");
-await a.selectOption('select[aria-label="Acción"]', "home_command");
+await a.click('button[role="combobox"][aria-label="Acción"]');
+await a.click('[role="listbox"] [role="option"]:has-text("Orden del hogar")');
 await a.fill('input[placeholder^="Orden:"]', "enciende la tira led");
 await a.click("text=Añadir atajo");
 await a.waitForSelector("text=«modo cine»");
@@ -77,9 +78,10 @@ await a.waitForSelector("text=comprar pan");
 log("navegación por voz/texto: «abre mis notas»");
 
 // Proveedores de IA: añadir clave (se cifra), fallback registrado
-await a.click("a:has-text('Ajustes')");
+await settings(a, "ia");
 await a.click("text=Añadir una clave propia");
-await a.selectOption('select[aria-label="Proveedor"]', "groq");
+await a.click('button[role="combobox"][aria-label="Proveedor"]');
+await a.click('[role="listbox"] [role="option"]:has-text("Groq")');
 await a.fill('input[placeholder^="API key"]', "gsk_test_key_1234567890abcd");
 await a.click('[role="dialog"] button:has-text("Guardar")');
 await a.waitForSelector("text=••••abcd");
@@ -90,7 +92,7 @@ const stored = await a.evaluate(async () => {
 if (!stored.length) await fail("no se guardó la clave en la caché local");
 await say("¿qué opinas de mi idea de negocio?");
 await pill("/circuitos saturados/", 30000);
-await a.click("a:has-text('Ajustes')");
+await settings(a, "ia");
 await a.waitForSelector("text=/1 fallos/");
 log("proveedores de IA: clave cifrada ••••abcd, fallo registrado y respuesta amable (sin red a Groq)");
 await shot(a, "p4-ai-providers");
@@ -100,6 +102,7 @@ const zip = new JSZip();
 zip.file("_chat.txt", `[28/09/26, 22:10:05] Laura: ¿Mañana cenamos?\n[28/09/26, 22:11:30] Pancho: Claro\nPaso a por ti a las 9\n[29/09/26, 13:45:12] Laura: ‎<adjunto: 00000012-PHOTO-2026-09-29-13-45-12.jpg>`);
 zip.file("00000012-PHOTO-2026-09-29-13-45-12.jpg", "fake");
 const buf = await zip.generateAsync({ type: "nodebuffer" });
+await settings(a, "importar");
 await a.setInputFiles('input[aria-label="Archivo de WhatsApp"]', { name: "WhatsApp Chat - Laura.zip", mimeType: "application/zip", buffer: buf });
 await a.waitForSelector('[data-testid="import-progress"] >> text=100%', { timeout: 20000 });
 await a.waitForSelector("text=/3\\/3 mensajes · Laura, Pancho · 1 adjuntos/");
@@ -127,11 +130,30 @@ await a.click("text=Hoy ha sido un día genial.");
 await a.waitForSelector("text=Momentos clave");
 
 // Prueba de alerta desde Ajustes
-await a.click("a:has-text('Ajustes')");
+await settings(a, "alertas");
 await a.click("text=Probar alerta");
-await a.waitForSelector('[role="alertdialog"] >> text=Sismo de magnitud 5,1 (prueba)');
-await a.click("text=Estoy bien");
-log("WorldMonitor: botón «Probar alerta»");
+await a.waitForSelector('[role="alertdialog"] >> text=Sismo de magnitud 5,1 (simulacro)');
+// El simulacro no se guarda: otra ventana de la misma cuenta no ve ninguna alerta
+const other = track(await ctx.newPage());
+await other.goto(a.url().replace(/\/settings.*$/, "/"));
+await other.waitForSelector('[data-testid="dot-button"]', { timeout: 20000 });
+await other.waitForTimeout(3000);
+if (await other.locator('[role="alertdialog"]').count()) await fail("el simulacro se ha guardado como alerta real");
+await other.close();
+// «¿Qué hago?» se abre ENCIMA de la alerta roja
+await a.click('[role="alertdialog"] >> text=¿Qué hago?');
+await a.waitForSelector('[role="dialog"][aria-label="Qué hacer ahora"]');
+const onTop = await a.evaluate(() => {
+  const sheet = document.querySelector('[role="dialog"][aria-label="Qué hacer ahora"] button');
+  const r = sheet.getBoundingClientRect();
+  return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === sheet || sheet.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
+});
+if (!onTop) await fail("«¿Qué hago?» queda detrás de la alerta");
+await a.waitForSelector('[data-testid="emergency-call"][href="tel:112"]');
+await a.keyboard.press("Escape");
+await a.click('[role="alertdialog"] >> text=Estoy bien');
+await a.waitForSelector('[role="alertdialog"]', { state: "detached" });
+log("WorldMonitor: simulacro solo en pantalla, «¿Qué hago?» encima de la alerta y 112 por ser España");
 
 await finish();
 console.log("✓ E2E fase 4 OK");

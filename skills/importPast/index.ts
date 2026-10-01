@@ -11,6 +11,6 @@ export const importPast: Skill = {
     return /\bimporta(r)?\b.*\b(whatsapp|chats?|pasado)\b/.test(t) ? {} : null;
   },
   async execute() {
-    return { reply: "Sube el .zip que exporta WhatsApp y me lo leo entero, hermano.", navigate: "/settings#importar" };
+    return { reply: "Sube el .zip que exporta WhatsApp y me lo leo entero, hermano.", navigate: "/settings?s=importar" };
   },
 };

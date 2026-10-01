@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Ear, EarOff, MessagesSquare, PictureInPicture2, SendHorizonal, Square } from "lucide-react";
+import { Ear, EarOff, MessagesSquare, NotebookPen, PictureInPicture2, SendHorizonal, Square } from "lucide-react";
+import { openQuickNote } from "@/components/QuickNote";
 import { LiquidDot, type DotMode } from "@/components/LiquidDot";
 import { ChatHistory } from "@/components/ChatHistory";
 import { Sheet } from "@/components/ui/Sheet";
@@ -59,7 +60,10 @@ export default function BrainPage() {
       setTimeout(() => setToast(null), 2500);
       return;
     }
-    void updateProfile({ floating_mode_enabled: !profile?.floating_mode_enabled });
+    const on = !profile?.floating_mode_enabled;
+    void updateProfile({ floating_mode_enabled: on });
+    setToast(on ? "Modo flotante: te dejo una bolita para hablarme desde cualquier pantalla." : "Modo flotante desactivado.");
+    setTimeout(() => setToast(null), 3500);
   };
 
   const greeting = useMemo(() => {
@@ -113,11 +117,12 @@ export default function BrainPage() {
             onClick={toggleFloating}
             aria-pressed={!!profile?.floating_mode_enabled}
             aria-label="Modo flotante"
+            title="Modo flotante: una bolita siempre a mano para hablarme desde cualquier pantalla"
             className={`rounded-full border p-2.5 ${profile?.floating_mode_enabled ? "border-arc bg-arc/20 text-arc" : "border-transparent bg-white/5 text-white/70 hover:bg-white/10"}`}
           >
             <PictureInPicture2 className="h-5 w-5" />
           </motion.button>
-          <button onClick={() => setHistoryOpen(true)} className="relative rounded-full bg-white/5 p-2.5 text-white/70 hover:bg-white/10" aria-label="Conversación">
+          <button onClick={() => setHistoryOpen(true)} className="relative rounded-full bg-white/5 p-2.5 text-white/70 hover:bg-white/10" aria-label="Conversación" title="Conversación">
             <MessagesSquare className="h-5 w-5" />
             {messages.length > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-arc" />}
           </button>
@@ -211,7 +216,20 @@ export default function BrainPage() {
         )}
       </div>
 
-      <form onSubmit={submit} className="mt-6 flex items-center gap-2 pr-16">
+      {/* Siempre por encima de la barra de abajo (también en el ordenador) */}
+      <form
+        onSubmit={submit}
+        className="sticky bottom-[calc(env(safe-area-inset-bottom)+84px)] z-20 mt-6 flex items-center gap-3 bg-gradient-to-t from-navy-900 via-navy-900/90 to-transparent pb-2 pt-4"
+      >
+        <button
+          type="button"
+          onClick={() => openQuickNote()}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-arc text-navy-900 shadow-[0_8px_24px_rgba(100,255,218,.3)]"
+          aria-label="Nota rápida"
+          title="Nota rápida"
+        >
+          <NotebookPen className="h-5 w-5" />
+        </button>
         <input className="jv-input rounded-full" placeholder="Escríbeme, hermano…" value={text} onChange={(e) => setText(e.target.value)} enterKeyHint="send" />
         <button type="submit" disabled={!text.trim() || thinking} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 text-arc disabled:opacity-40" aria-label="Enviar">
           <SendHorizonal className="h-5 w-5" />
@@ -220,7 +238,7 @@ export default function BrainPage() {
 
       <AnimatePresence>
         {toast && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed left-1/2 top-20 z-40 -translate-x-1/2 rounded-full bg-navy-700 px-4 py-2 text-sm">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed left-1/2 top-20 z-40 w-max max-w-[90vw] -translate-x-1/2 rounded-full bg-navy-700 px-4 py-2 text-center text-sm">
             {toast}
           </motion.div>
         )}

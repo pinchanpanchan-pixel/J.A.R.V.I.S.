@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { NotebookPen, Check } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
@@ -27,6 +27,8 @@ export function QuickNoteFab() {
   const ref = useRef<HTMLTextAreaElement>(null);
   const params = useSearchParams();
   const router = useRouter();
+  // En Cerebro el botón va junto al cuadro de escribir (bien separado de «Enviar»).
+  const onBrain = usePathname() === "/";
 
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -64,14 +66,16 @@ export function QuickNoteFab() {
 
   return (
     <>
-      <motion.button
-        whileTap={{ scale: 0.9 }}
-        onClick={() => setOpen(true)}
-        aria-label="Nota rápida"
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+84px)] right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-arc text-navy-900 shadow-[0_10px_30px_rgba(100,255,218,.35)]"
-      >
-        <NotebookPen className="h-6 w-6" />
-      </motion.button>
+      {!onBrain && (
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setOpen(true)}
+          aria-label="Nota rápida"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+84px)] right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-arc text-navy-900 shadow-[0_10px_30px_rgba(100,255,218,.35)]"
+        >
+          <NotebookPen className="h-6 w-6" />
+        </motion.button>
+      )}
       <Sheet open={open} onClose={() => setOpen(false)} title="Nota rápida">
         <textarea
           ref={ref}

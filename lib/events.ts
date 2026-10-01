@@ -4,6 +4,8 @@ export const JARVIS_EVENTS = {
   talk: "jarvis:talk",
   /** Alerta de WorldMonitor a pantalla completa. */
   worldAlert: "jarvis:world-alert",
+  /** Simulacro de alerta: solo se muestra en este dispositivo, NUNCA se guarda como alerta real. */
+  drill: "jarvis:drill",
 } as const;
 
 export function emit(name: string, detail?: unknown) {

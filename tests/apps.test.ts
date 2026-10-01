@@ -68,8 +68,8 @@ describe("OAuth de conectores", () => {
 
   it("solo se vuelve a rutas internas", () => {
     expect(safeReturn("/")).toBe("/");
-    expect(safeReturn("https://evil.com")).toBe("/settings#conexiones");
-    expect(safeReturn("//evil.com")).toBe("/settings#conexiones");
+    expect(safeReturn("https://evil.com")).toBe("/settings?s=conexiones");
+    expect(safeReturn("//evil.com")).toBe("/settings?s=conexiones");
   });
 
   it("firma de Tuya estable (HMAC-SHA256 en mayúsculas)", () => {

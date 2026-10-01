@@ -135,3 +135,13 @@ export async function logout(p) {
   await p.click("button:has-text('Cerrar sesión')");
   await p.waitForURL("**/login");
 }
+
+/** Abre Ajustes (la lista) y, si se pide, uno de sus apartados (perfil, voz, conexiones…). */
+export async function settings(p, id) {
+  await p.click("a:has-text('Ajustes')");
+  await p.waitForSelector('[data-testid="settings-perfil"]');
+  if (id) {
+    await p.click(`[data-testid="settings-${id}"]`);
+    await p.waitForSelector('button[aria-label="Volver a Ajustes"]');
+  }
+}

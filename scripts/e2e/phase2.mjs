@@ -1,5 +1,5 @@
 // E2E Fase 2: onboarding (el propietario salta el pago), UI principal, memorias, diario, hogar, modo flotante.
-import { BASE, log, setup, login, completeOnboarding, addQuickNote } from "./helpers.mjs";
+import { BASE, log, setup, login, completeOnboarding, addQuickNote, settings } from "./helpers.mjs";
 
 const { browser, fail, track, shot, finish } = await setup();
 
@@ -54,9 +54,10 @@ await a.waitForFunction(() => !document.body.innerText.match(/[1-9]\/\d encendid
 await shot(a, "p2-home");
 log("hogar: dispositivos y apagar todo");
 
-await a.click("a:has-text('Ajustes')");
+await settings(a);
 await a.waitForSelector("text=OWNER - Lifetime");
-if (await a.locator("h2:has-text('Suscripción')").count()) await fail("el propietario no debe ver la suscripción");
+if (await a.locator('[data-testid="settings-suscripcion"]').count()) await fail("el propietario no debe ver la suscripción");
+await a.click('[data-testid="settings-flotante"]');
 await a.click('button[aria-label="Modo flotante"][role="switch"]');
 await a.waitForSelector('button[aria-label="Friday flotante"]');
 await shot(a, "p2-settings");
@@ -76,8 +77,8 @@ const u = await completeOnboarding(c, { owner: false, shot });
 if (u.total !== 10) await fail(`usuario normal debería tener 10 pasos, tiene ${u.total}`);
 await c.click("a:has-text('Diario')");
 await c.waitForSelector("text=Tu diario privado");
-await c.click("a:has-text('Ajustes')");
-await c.waitForSelector("h2:has-text('Suscripción')");
+await settings(c);
+await c.waitForSelector('[data-testid="settings-suscripcion"]');
 log("usuario Free: 10 pasos, diario bloqueado y suscripción visible");
 
 await finish();

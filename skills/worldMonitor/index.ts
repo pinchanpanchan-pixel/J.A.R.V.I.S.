@@ -21,7 +21,7 @@ export const worldMonitor: Skill = {
   },
   async execute(ctx, _raw, m) {
     const loc = await ctx.engine.get("user_locations", stableId(ctx.userId, "primary-location"));
-    if (!loc) return { reply: "Necesito saber dónde estás, hermano. Configúralo en Ajustes → Ubicación.", navigate: "/settings" };
+    if (!loc) return { reply: "Necesito saber dónde estás, hermano. Configúralo en Ajustes → Ubicación.", navigate: "/settings?s=ubicacion" };
     if (m.mode === "quakes") {
       const settings = await ctx.engine.get("world_monitor_settings", ctx.userId);
       const radius = settings?.radius_km ?? 500;

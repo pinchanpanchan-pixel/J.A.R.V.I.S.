@@ -1,4 +1,5 @@
 "use client";
+import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useMemo, useState } from "react";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Toggle } from "@/components/ui/Toggle";
@@ -133,22 +134,9 @@ export function ShortcutsManager({ locked }: { locked: boolean }) {
           )}
         </div>
         <input className="jv-input" placeholder="Cuando diga… (p. ej. «modo cine»)" value={trigger} onChange={(e) => setTrigger(e.target.value)} disabled={locked} />
-        <select className="jv-input" value={action} onChange={(e) => setAction(e.target.value)} disabled={locked} aria-label="Acción">
-          {SHORTCUT_ACTIONS.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.label}
-            </option>
-          ))}
-        </select>
+        <GlassSelect ariaLabel="Acción" value={action} onChange={setAction} disabled={locked} options={SHORTCUT_ACTIONS.map((a) => ({ value: a.id, label: a.label }))} />
         {needs === "path" ? (
-          <select className="jv-input" value={param} onChange={(e) => setParam(e.target.value)} aria-label="Sección">
-            <option value="">Elige sección</option>
-            {PATHS.map(([p, l]) => (
-              <option key={p} value={p}>
-                {l}
-              </option>
-            ))}
-          </select>
+          <GlassSelect ariaLabel="Sección" placeholder="Elige sección" value={param || null} onChange={setParam} options={PATHS.map(([p, l]) => ({ value: p, label: l }))} />
         ) : needs ? (
           <input
             className="jv-input"

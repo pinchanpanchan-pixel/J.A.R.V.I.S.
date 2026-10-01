@@ -3,7 +3,7 @@
 import { existsSync } from "node:fs";
 import { execSync } from "node:child_process";
 import path from "node:path";
-import { log, setup, login, completeOnboarding } from "./helpers.mjs";
+import { log, setup, login, completeOnboarding, settings } from "./helpers.mjs";
 
 const fx = (f) => path.resolve("scripts/e2e/fixtures", f);
 if (!existsSync(fx("speech.wav"))) execSync("python3 scripts/e2e/make_fixtures.py");
@@ -78,8 +78,7 @@ await p.click("button:has-text('Guardar')");
 log("nota rápida dictada: «comprar leche y pan»");
 
 // 3) Ajustes: voz del dueño
-await p.click("a:has-text('Ajustes')");
-await p.waitForSelector("text=Tu voz");
+await settings(p, "tu-voz");
 for (let i = 0; i < 3; i++) {
   await p.click('button[aria-label="Grabar frase"]');
   await p.waitForSelector('button[aria-label="Grabando"]');
@@ -94,6 +93,7 @@ await shot(p, "v2p2-voiceprint");
 log("voz del dueño: 3 frases → huella guardada → «Eres tú» al probar");
 
 // 4) Palmadas: barra fluida
+await settings(p, "activacion");
 await p.click('button[role="switch"][aria-label="Doble palmada"]');
 const slider = p.locator('input[aria-label="Sensibilidad de las palmadas"]');
 await slider.evaluate((el) => {
@@ -106,12 +106,14 @@ await p.waitForTimeout(600);
 await p.reload();
 await p.waitForSelector("text=37 %", { timeout: 10000 });
 log("sensibilidad de palmadas: cualquier valor (37 %) y se guarda");
+await settings(p, "atajos");
 
 // 5) Atajos: filas agrupadas ES/EN, luces/música bloqueadas sin conexión, editar y borrar los propios
 await p.waitForSelector("text=EN: open notes block · open my notes");
 await p.waitForSelector("text=EN: play my music");
 await p.fill('input[placeholder^="Cuando diga"]', "modo prueba");
-await p.selectOption('select[aria-label="Acción"]', "say");
+await p.click('button[role="combobox"][aria-label="Acción"]');
+await p.click('[role="listbox"] [role="option"]:has-text("Responder con una frase")');
 await p.fill('input[placeholder="Lo que responderé"]', "Hecho, probado");
 await p.click("button:has-text('Añadir atajo')");
 await p.waitForSelector("text=«modo prueba»");
@@ -123,7 +125,7 @@ await p.click("a:has-text('Cerebro')");
 await p.fill('input[placeholder="Escríbeme, hermano…"]', "modo ensayo");
 await p.click('button[aria-label="Enviar"]');
 await p.waitForSelector('[data-testid="transcript-pill"] >> text=Hecho, probado', { timeout: 10000 });
-await p.click("a:has-text('Ajustes')");
+await settings(p, "atajos");
 await p.click('button[aria-label="Borrar atajo"]');
 await p.click('button[aria-label="Confirmar borrado"]');
 await p.waitForSelector("text=«modo ensayo»", { state: "detached" });

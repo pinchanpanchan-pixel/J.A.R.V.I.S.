@@ -1,6 +1,6 @@
 // E2E v2 · Fase 4: conexiones (buscador, logos, ficha, «Conectado como», desconectar todo con
 // confirmación), Apple con atajo, claves de Govee, Hogar con nombres bonitos y Maps sin cuenta.
-import { log, setup, login, completeOnboarding } from "./helpers.mjs";
+import { log, setup, login, completeOnboarding, settings } from "./helpers.mjs";
 
 const { browser, track, fail, shot, finish } = await setup();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block", permissions: ["clipboard-read", "clipboard-write"] });
@@ -9,7 +9,7 @@ const p = await login(ctx, track, "pinchan.panchan@gmail.com");
 await completeOnboarding(p, { owner: true });
 log("configuración inicial: Spotify conectado con su inicio de sesión (prueba)");
 
-await p.click("a:has-text('Ajustes')");
+await settings(p, "conexiones");
 await p.waitForSelector("#conexiones");
 const grid = p.locator("#conexiones");
 for (const bad of ["Apple Passwords", "Contraseñas", "Inicio de sesión", "Atajos de iOS", "HomeKit"]) {

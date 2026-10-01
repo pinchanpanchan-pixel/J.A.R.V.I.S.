@@ -1,4 +1,5 @@
 "use client";
+import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useEffect, useState } from "react";
 import { ArrowRight, KeyRound, Loader2, Play, Plus, Server, Trash2, Zap } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
@@ -184,15 +185,9 @@ export function AIProvidersManager({ locked = false }: { locked?: boolean }) {
 
       <Sheet open={open} onClose={() => setOpen(false)} title="Añadir proveedor">
         <div className="flex flex-col gap-3">
-          <select className="jv-input" value={provider} onChange={(e) => setProvider(e.target.value as AIProvider)} aria-label="Proveedor">
-            {AI_PROVIDERS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <GlassSelect<AIProvider> ariaLabel="Proveedor" value={provider} onChange={setProvider} options={AI_PROVIDERS.map((p) => ({ value: p.id, label: p.name }))} />
           <input
-            className="jv-input font-mono text-sm"
+            className="jv-input font-mono"
             type="password"
             autoComplete="off"
             placeholder={`API key (${AI_PROVIDERS.find((p) => p.id === provider)?.hint})`}

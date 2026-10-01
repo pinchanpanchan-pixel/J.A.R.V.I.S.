@@ -22,8 +22,7 @@ export const viewport: Viewport = {
   themeColor: "#0A192F",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Se permite ampliar con los dedos (accesibilidad). Los campos usan 16 px para que iOS no haga zoom solo.
   viewportFit: "cover",
 };
 

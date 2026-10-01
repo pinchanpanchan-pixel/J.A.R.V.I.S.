@@ -1,5 +1,5 @@
 // E2E Fase 5: pagos (simulados), códigos de descuento, propietario y panel de códigos.
-import { log, setup, login, completeOnboarding, logout } from "./helpers.mjs";
+import { log, setup, login, completeOnboarding, logout, settings } from "./helpers.mjs";
 
 const { browser, fail, track, shot, finish } = await setup();
 // Mismo contexto = misma «nube» simulada para todos los usuarios (los códigos son globales)
@@ -32,7 +32,7 @@ await completeOnboarding(p, {
     log("pago simulado con tarjeta → plan activado");
   },
 });
-await p.click("a:has-text('Ajustes')");
+await settings(p, "suscripcion");
 await p.waitForSelector("text=/Plan Pro · mensual/");
 await p.click("a:has-text('Diario')");
 await p.waitForSelector("text=Diario");
@@ -54,8 +54,8 @@ await completeOnboarding(p, {
     await pg.click("text=Seguir con el plan Free");
   },
 });
-await p.click("a:has-text('Ajustes')");
-await p.waitForSelector("text=Suscripción");
+await settings(p);
+await p.waitForSelector('[data-testid="settings-suscripcion"]');
 if (await p.locator("text=OWNER - Lifetime").count()) await fail("Bea no debería ser propietaria");
 if (await p.locator("text=Proveedores de IA").count()) await fail("un cliente no debe ver Proveedores de IA");
 if (await p.locator("text=Códigos de descuento").count()) await fail("un cliente no debe ver Códigos de descuento");
@@ -65,12 +65,13 @@ await logout(p);
 // ---- Propietario por email: nunca ve el pago; panel de códigos con CRUD
 p = await login(ctx, track, "pinchan.panchan@gmail.com");
 await completeOnboarding(p, { owner: true });
-await p.click("a:has-text('Ajustes')");
+await settings(p);
 await p.waitForSelector("text=OWNER - Lifetime");
 if (await p.locator("text=Desbloquea a tu hermano completo").count()) await fail("el propietario no debe ver el pago");
+await p.waitForSelector('[data-testid="settings-ia"]');
+await p.click('[data-testid="settings-codigos"]');
 await p.waitForSelector('[data-testid="code-BROTHER50"] >> text=/Usos 1\/100/');
 await p.waitForSelector('[data-testid="code-PANCHAN100"] >> text=/Usos 0\/∞/');
-await p.waitForSelector("text=Proveedores de IA");
 log("panel: usos reales (BROTHER50 1/100, PANCHAN100 0/∞: el intento de Bea no cuenta) + Proveedores de IA visible");
 await p.click("text=Crear código");
 await p.fill('input[aria-label="Código"]', "VIP40");
